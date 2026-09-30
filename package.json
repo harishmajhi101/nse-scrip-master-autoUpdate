@@ -14,7 +14,7 @@
     "lucide-react": "^1.49.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "zcatalyst-sdk-node": "^3.4.0"
+    "zcatalyst-sdk-node": "^3.1.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
