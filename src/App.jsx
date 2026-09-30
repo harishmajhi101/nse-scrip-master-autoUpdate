@@ -8,6 +8,10 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+
+import Sidebar from "./components/Sidebar";
+import Header from "./components/Header";
+
 import Master from "./pages/Master";
 import Staging from "./pages/Staging";
 import ChangeHistory from "./pages/ChangeHistory";

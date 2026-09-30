@@ -98,7 +98,7 @@ export default function RunHistory() {
 
         <div className="history-toolbar">
           <div className="search-box">
-            <Search size={19} />
+            <Search size={16} />
 
             <input
               type="text"
@@ -109,12 +109,12 @@ export default function RunHistory() {
           </div>
 
           <button
-            className="refresh-button"
+            className="run-history-refresh"
             onClick={loadRuns}
             disabled={loading}
           >
             <RefreshCw
-              size={18}
+              size={16}
               className={loading ? "spin" : ""}
             />
 
