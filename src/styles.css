@@ -1,5 +1,6 @@
 * {
   box-sizing: border-box;
+ 
 }
 
 body {
@@ -13,6 +14,7 @@ body {
     sans-serif;
   background: #f5f7fb;
   color: #172033;
+   height: 100%;
 }
 
 button {
@@ -772,4 +774,422 @@ button:disabled {
 .muted {
   color: #8a8f98;
   font-size: 12px;
+}
+/* Dashboard */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #eff6ff;
+}
+
+.stat-card p {
+  margin: 0 0 5px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.stat-card h3 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.run-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.run-summary > div {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.run-summary strong {
+  display: block;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.run-summary span {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.run-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1000px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .run-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .run-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ------------ */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.run-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 18px;
+}
+
+/* =========================================================
+   REQUIREMENT-WISE DASHBOARD
+========================================================= */
+
+.dashboard-page {
+  width: 100%;
+  height: 100%;
+}
+
+.section-title {
+  margin: 28px 0 14px;
+}
+
+.section-title h3 {
+  margin: 0 0 4px;
+}
+
+.section-title p {
+  margin: 0;
+  color: #64748b;
+}
+
+/* METRIC CARDS */
+
+.metric-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.metric-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  background: #eff6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.metric-card span {
+  display: block;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.metric-card strong {
+  display: block;
+  font-size: 27px;
+  margin: 3px 0;
+}
+
+.metric-card small {
+  color: #94a3b8;
+}
+
+.metric-warning {
+  border-color: #fde68a;
+}
+
+.metric-warning .metric-icon {
+  background: #fef3c7;
+}
+
+/* RUN INFORMATION */
+
+.run-info {
+  display: flex;
+  gap: 40px;
+  padding: 15px 0;
+}
+
+.run-info span {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 5px;
+}
+
+.run-info strong {
+  font-size: 14px;
+}
+
+/* RUN METRICS */
+
+.run-metric {
+  padding: 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.run-metric span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.run-metric strong {
+  display: block;
+  font-size: 22px;
+  margin-top: 4px;
+}
+
+.run-metric-error {
+  border-color: #fecaca;
+}
+
+/* TWO COLUMN */
+
+.dashboard-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+/* OPERATION ROW */
+
+.operation-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.operation-row:last-child {
+  border-bottom: none;
+}
+
+.operation-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  background: #eff6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.operation-row div:nth-child(2) {
+  flex: 1;
+}
+
+.operation-row strong {
+  display: block;
+  font-size: 14px;
+}
+
+.operation-row span {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 3px;
+}
+
+.success-icon {
+  color: #16a34a;
+}
+
+/* APPROVAL */
+
+.alert-box,
+.clear-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.alert-box {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+}
+
+.clear-box {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.alert-box strong,
+.clear-box strong {
+  display: block;
+  font-size: 14px;
+}
+
+.alert-box span,
+.clear-box span {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* AI */
+
+.ai-status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 10px;
+}
+
+.ai-status strong {
+  display: block;
+}
+
+.ai-status span {
+  display: block;
+  color: #64748b;
+  font-size: 13px;
+  margin-top: 5px;
+}
+
+.status-success,
+.status-warning,
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-success {
+  color: #16a34a;
+}
+
+.status-warning {
+  color: #d97706;
+}
+
+.status-info {
+  color: #64748b;
+}
+
+/* DASHBOARD ACTIONS */
+
+.dashboard-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 20px 0;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-two-column {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pipeline {
+    align-items: stretch;
+  }
+
+  .pipeline-arrow {
+    display: none;
+  }
+}
+/* =========================================================
+   DASHBOARD PAGE SCROLL FIX
+========================================================= */
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow-y: auto !important;
+}
+
+.app {
+  min-height: 100vh;
+  height: auto !important;
+}
+
+.main {
+  min-height: 100vh;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.content {
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.dashboard-page {
+  min-height: calc(100vh - 100px);
+  padding-bottom: 40px;
 }
