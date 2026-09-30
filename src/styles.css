@@ -1193,3 +1193,55 @@ body {
   min-height: calc(100vh - 100px);
   padding-bottom: 40px;
 }
+
+/* =========================================================
+   DASHBOARD HEADER
+========================================================= */
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  margin-bottom: 28px;
+}
+
+.dashboard-header > div {
+  min-width: 0;
+}
+
+.dashboard-header h2 {
+  margin: 0 0 6px;
+}
+
+.dashboard-header p {
+  margin: 0;
+}
+
+.dashboard-header .run-button {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+/* ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.topbar > div {
+  min-width: 0;
+}
+
+.topbar .run-button {
+  margin-left: auto;
+  flex-shrink: 0;
+}

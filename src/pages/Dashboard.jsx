@@ -1,547 +1,468 @@
 import { useEffect, useState } from "react";
+
 import {
-  Play,
-  RefreshCw,
   Database,
   FileText,
   History,
   ShieldCheck,
-  Download,
   CheckCircle2,
   AlertTriangle,
-  Brain,
-  GitMerge,
-  Clock,
+  Bot,
+  RefreshCw,
+  Play,
 } from "lucide-react";
 
 const API_BASE_URL =
   "https://nse-data-sync-60066676245.development.catalystserverless.in/server/scrip_api";
 
-function Dashboard() {
-  const [running, setRunning] = useState(false);
-
-  const [stats, setStats] = useState({
-    master: 0,
-    staging: 0,
-    history: 0,
-    approval: 0,
-  });
-
-  const [loadingStats, setLoadingStats] = useState(true);
-
-  const [runResult, setRunResult] = useState(null);
-  const [runError, setRunError] = useState("");
-  const [apiError, setApiError] = useState("");
-
-  // =========================================================
-  // GET JSON
-  // =========================================================
-
-  const getJson = async (url) => {
-    console.log("API REQUEST:", url);
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
+function Dashboard({
+  refreshKey,
+  running,
+  runResult,
+  runError,
+}) {
+  const [stats, setStats] =
+    useState({
+      master: 0,
+      staging: 0,
+      history: 0,
+      approval: 0,
     });
 
-    console.log("API STATUS:", response.status);
+  const [loading, setLoading] =
+    useState(true);
 
-    const text = await response.text();
+  const [apiError, setApiError] =
+    useState("");
 
-    console.log("API RESPONSE:", text);
+  // =========================================================
+  // API HELPER
+  // =========================================================
 
-    let data;
+  const fetchJson = async (
+    url
+  ) => {
+    console.log(
+      "DASHBOARD API REQUEST:",
+      url
+    );
+
+    const response =
+      await fetch(url);
+
+    console.log(
+      "DASHBOARD API STATUS:",
+      response.status
+    );
+
+    const text =
+      await response.text();
+
+    console.log(
+      "DASHBOARD API RESPONSE:",
+      text
+    );
+
+    let result;
 
     try {
-      data = JSON.parse(text);
+      result =
+        JSON.parse(text);
     } catch {
       throw new Error(
-        `Invalid JSON response from ${url}`
+        "Invalid JSON returned by API."
       );
     }
 
     if (!response.ok) {
       throw new Error(
-        data.message ||
-          `Request failed with status ${response.status}`
+        result.message ||
+          `API failed with status ${response.status}`
       );
     }
 
-    return data;
-  };
-
-  // =========================================================
-  // LOAD COUNT
-  // =========================================================
-
-  const loadCount = async (endpoint) => {
-    try {
-      const result = await getJson(
-        `${API_BASE_URL}/${endpoint}`
-      );
-
-      if (!result.success) {
-        return 0;
-      }
-
-      if (typeof result.count === "number") {
-        return result.count;
-      }
-
-      if (Array.isArray(result.data)) {
-        return result.data.length;
-      }
-
-      return 0;
-    } catch (error) {
-      console.error(
-        `${endpoint} API error:`,
-        error
-      );
-
-      return 0;
-    }
+    return result;
   };
 
   // =========================================================
   // LOAD DASHBOARD DATA
   // =========================================================
 
-  const fetchDashboardStats = async () => {
-    setLoadingStats(true);
-    setApiError("");
-
-    try {
-      const masterCount =
-        await loadCount("master");
-
-      const stagingCount =
-        await loadCount("staging");
-
-      const historyCount =
-        await loadCount("history");
-
-      let approvalCount = 0;
+  const loadDashboard =
+    async () => {
+      setLoading(true);
+      setApiError("");
 
       try {
-        const approvalResult =
-          await getJson(
-            `${API_BASE_URL}/approval`
-          );
 
-        if (
-          approvalResult.success &&
-          Array.isArray(approvalResult.data)
-        ) {
-          approvalCount =
-            approvalResult.data.filter(
-              (item) =>
-                String(item.Status || "")
-                  .toLowerCase() === "pending"
-            ).length;
-        }
+        const [
+          masterResult,
+          stagingResult,
+          historyResult,
+          approvalResult,
+        ] =
+          await Promise.all([
+            fetchJson(
+              `${API_BASE_URL}/master`
+            ),
+
+            fetchJson(
+              `${API_BASE_URL}/staging`
+            ),
+
+            fetchJson(
+              `${API_BASE_URL}/history`
+            ),
+
+            fetchJson(
+              `${API_BASE_URL}/approval`
+            ),
+          ]);
+
+        // -----------------------------------------------
+        // MASTER
+        // -----------------------------------------------
+
+        const masterCount =
+          masterResult.success
+            ? masterResult.count ??
+              masterResult.data
+                ?.length ??
+              0
+            : 0;
+
+        // -----------------------------------------------
+        // STAGING
+        // -----------------------------------------------
+
+        const stagingCount =
+          stagingResult.success
+            ? stagingResult.count ??
+              stagingResult.data
+                ?.length ??
+              0
+            : 0;
+
+        // -----------------------------------------------
+        // HISTORY
+        // -----------------------------------------------
+
+        const historyCount =
+          historyResult.success
+            ? historyResult.count ??
+              historyResult.data
+                ?.length ??
+              0
+            : 0;
+
+        // -----------------------------------------------
+        // APPROVAL
+        // -----------------------------------------------
+
+        const approvalCount =
+          approvalResult.success
+            ? (
+                approvalResult.data ||
+                []
+              ).filter(
+                (item) =>
+                  String(
+                    item.Status ||
+                      ""
+                  ).toLowerCase() ===
+                  "pending"
+              ).length
+            : 0;
+
+        setStats({
+          master:
+            masterCount,
+
+          staging:
+            stagingCount,
+
+          history:
+            historyCount,
+
+          approval:
+            approvalCount,
+        });
+
       } catch (error) {
+
         console.error(
-          "Approval API error:",
+          "Dashboard loading error:",
           error
         );
+
+        setApiError(
+          error.message ||
+            "Failed to load dashboard."
+        );
+
+      } finally {
+        setLoading(false);
       }
-
-      setStats({
-        master: masterCount,
-        staging: stagingCount,
-        history: historyCount,
-        approval: approvalCount,
-      });
-    } catch (error) {
-      console.error(
-        "Dashboard error:",
-        error
-      );
-
-      setApiError(
-        error.message ||
-          "Failed to load dashboard"
-      );
-    } finally {
-      setLoadingStats(false);
-    }
-  };
+    };
 
   // =========================================================
-  // RUN TIER 1
-  // =========================================================
-
-  const handleRunNow = async () => {
-    console.log(
-      "================================="
-    );
-
-    console.log(
-      "RUN NOW BUTTON CLICKED"
-    );
-
-    console.log(
-      "================================="
-    );
-
-    setRunning(true);
-    setRunError("");
-    setRunResult(null);
-
-    const url =
-      `${API_BASE_URL}/tier1/run`;
-
-    try {
-      console.log(
-        "TIER 1 REQUEST:",
-        url
-      );
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({}),
-      });
-
-      console.log(
-        "TIER 1 HTTP STATUS:",
-        response.status
-      );
-
-      const text =
-        await response.text();
-
-      console.log(
-        "TIER 1 RAW RESPONSE:",
-        text
-      );
-
-      let result;
-
-      try {
-        result = JSON.parse(text);
-      } catch {
-        throw new Error(
-          "Tier 1 returned invalid JSON."
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          result.message ||
-            `Tier 1 HTTP error ${response.status}`
-        );
-      }
-
-      if (!result.success) {
-        throw new Error(
-          result.message ||
-            "Tier 1 run failed."
-        );
-      }
-
-      setRunResult(result);
-
-      await fetchDashboardStats();
-
-    } catch (error) {
-      console.error(
-        "TIER 1 RUN ERROR:",
-        error
-      );
-
-      setRunError(
-        error.message ||
-          "Unable to run Tier 1."
-      );
-    } finally {
-      setRunning(false);
-    }
-  };
-
-  // =========================================================
-  // INITIAL LOAD
+  // INITIAL LOAD + AFTER TIER 1
   // =========================================================
 
   useEffect(() => {
-    fetchDashboardStats();
-  }, []);
+    loadDashboard();
+  }, [refreshKey]);
 
   // =========================================================
-  // RENDER
+  // MANUAL REFRESH
   // =========================================================
+
+  const handleRefresh =
+    () => {
+      loadDashboard();
+    };
 
   return (
-    <div className="dashboard-page">
+    <div
+      className="dashboard-page"
+      style={{
+        paddingBottom:
+          "40px",
+      }}
+    >
 
-      {/* =====================================================
-          HEADER
-      ====================================================== */}
+      {/* ===================================================
+          ERROR FROM DASHBOARD API
+      ==================================================== */}
 
-      <div className="page-heading">
+      {apiError && (
+        <div
+          className="error-message"
+          style={{
+            marginBottom:
+              "20px",
+          }}
+        >
+          Dashboard API Error:{" "}
+          {apiError}
+        </div>
+      )}
+
+      {/* ===================================================
+          TIER 1 ERROR
+      ==================================================== */}
+
+      {runError && (
+        <div
+          className="error-message"
+          style={{
+            marginBottom:
+              "20px",
+          }}
+        >
+          <AlertTriangle
+            size={17}
+            style={{
+              verticalAlign:
+                "middle",
+              marginRight:
+                "6px",
+            }}
+          />
+
+          Tier 1 Error:{" "}
+          {runError}
+        </div>
+      )}
+
+      {/* ===================================================
+          TIER 1 SUCCESS
+      ==================================================== */}
+
+      {runResult && (
+        <div
+          className="success-message"
+          style={{
+            marginBottom:
+              "20px",
+          }}
+        >
+          <CheckCircle2
+            size={17}
+            style={{
+              verticalAlign:
+                "middle",
+              marginRight:
+                "6px",
+            }}
+          />
+
+          Tier 1 completed
+          successfully.
+        </div>
+      )}
+
+      {/* ===================================================
+          SYSTEM OVERVIEW
+      ==================================================== */}
+
+      <div
+        style={{
+          display: "flex",
+          alignItems:
+            "center",
+          justifyContent:
+            "space-between",
+          marginBottom:
+            "18px",
+        }}
+      >
 
         <div>
-          <h2>
-            NSE Scrip Master Control Center
+          <h2
+            style={{
+              margin:
+                "0 0 5px",
+            }}
+          >
+            System Overview
           </h2>
 
-          <p>
-            Monitor ingestion, matching,
-            master updates and approvals
+          <p
+            style={{
+              margin: 0,
+            }}
+          >
+            Current records and
+            processing state
           </p>
         </div>
 
         <button
-          type="button"
-          className="run-button"
-          onClick={handleRunNow}
-          disabled={running}
+          className="secondary-button"
+          onClick={
+            handleRefresh
+          }
+          disabled={loading}
         >
-          {running ? (
-            <RefreshCw
-              size={18}
-              className="spin"
-            />
-          ) : (
-            <Play size={18} />
-          )}
+          <RefreshCw
+            size={16}
+            className={
+              loading
+                ? "spin"
+                : ""
+            }
+          />
 
-          {running
-            ? "Running..."
-            : "Run Tier 1"}
+          Refresh
         </button>
 
       </div>
 
-      {/* =====================================================
-          ERROR
-      ====================================================== */}
+      {/* ===================================================
+          STAT CARDS
+      ==================================================== */}
 
-      {apiError && (
-        <div className="error-message">
-          <AlertTriangle size={18} />
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(4, minmax(0, 1fr))",
+          gap: "18px",
+          marginBottom:
+            "28px",
+        }}
+      >
 
-          <span>
-            Dashboard API Error:{" "}
-            {apiError}
-          </span>
-        </div>
-      )}
+        {/* MASTER */}
 
-      {runError && (
-        <div className="error-message">
-          <AlertTriangle size={18} />
-
-          <span>
-            Tier 1 Error:{" "}
-            {runError}
-          </span>
-        </div>
-      )}
-
-
-
-      {/* =====================================================
-          DATABASE / PROCESSING METRICS
-      ====================================================== */}
-
-      <div className="section-title">
-        <div>
-          <h3>
-            System Overview
-          </h3>
-
-          <p>
-            Current records and processing state
-          </p>
-        </div>
-      </div>
-
-      <div className="dashboard-grid">
-
-        <MetricCard
-          icon={<Database size={22} />}
+        <DashboardCard
+          icon={
+            <Database
+              size={22}
+            />
+          }
           title="Master Records"
           value={
-            loadingStats
+            loading
               ? "..."
               : stats.master
           }
-          description="scrip_master"
+          description="Current scrip_master records"
         />
 
-        <MetricCard
-          icon={<FileText size={22} />}
+        {/* STAGING */}
+
+        <DashboardCard
+          icon={
+            <FileText
+              size={22}
+            />
+          }
           title="Staging Records"
           value={
-            loadingStats
+            loading
               ? "..."
               : stats.staging
           }
           description="Waiting for matching"
         />
 
-        <MetricCard
-          icon={<History size={22} />}
+        {/* HISTORY */}
+
+        <DashboardCard
+          icon={
+            <History
+              size={22}
+            />
+          }
           title="History Records"
           value={
-            loadingStats
+            loading
               ? "..."
               : stats.history
           }
           description="Recorded field changes"
         />
 
-        <MetricCard
-          icon={<ShieldCheck size={22} />}
+        {/* APPROVAL */}
+
+        <DashboardCard
+          icon={
+            <ShieldCheck
+              size={22}
+            />
+          }
           title="Pending Approvals"
           value={
-            loadingStats
+            loading
               ? "..."
               : stats.approval
           }
-          description="Requires review"
-          warning={stats.approval > 0}
+          description="Requires human review"
+          warning={
+            stats.approval > 0
+          }
         />
 
       </div>
 
-      {/* =====================================================
-          LATEST TIER 1
-      ====================================================== */}
+      {/* ===================================================
+          MASTER + APPROVAL
+      ==================================================== */}
 
-      {runResult && (
-        <div className="panel">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "minmax(0, 1fr) minmax(0, 1fr)",
+          gap: "22px",
+          marginBottom:
+            "22px",
+        }}
+      >
 
-          <div className="panel-header">
-
-            <div>
-              <h3>
-                Latest Tier 1 Run
-              </h3>
-
-              <p>
-                Deterministic ISIN matching result
-              </p>
-            </div>
-
-            <div className="status-success">
-              <CheckCircle2 size={17} />
-
-              SUCCESS
-            </div>
-
-          </div>
-
-          <div className="run-info">
-
-            <div>
-              <span>Run ID</span>
-
-              <strong>
-                {runResult.runId}
-              </strong>
-            </div>
-
-            <div>
-              <span>Duration</span>
-
-              <strong>
-                {runResult.duration ?? 0} ms
-              </strong>
-            </div>
-
-          </div>
-
-          <div className="run-summary">
-
-            <RunMetric
-              label="Staging"
-              value={
-                runResult.counts
-                  ?.totalStaging ?? 0
-              }
-            />
-
-            <RunMetric
-              label="Matched"
-              value={
-                runResult.counts
-                  ?.matched ?? 0
-              }
-            />
-
-            <RunMetric
-              label="Updated"
-              value={
-                runResult.counts
-                  ?.updated ?? 0
-              }
-            />
-
-            <RunMetric
-              label="New Records"
-              value={
-                runResult.counts
-                  ?.newRecords ?? 0
-              }
-            />
-
-            <RunMetric
-              label="Unchanged"
-              value={
-                runResult.counts
-                  ?.unchanged ?? 0
-              }
-            />
-
-            <RunMetric
-              label="Unmatched"
-              value={
-                runResult.counts
-                  ?.unmatched ?? 0
-              }
-            />
-
-            <RunMetric
-              label="Duplicates"
-              value={
-                runResult.counts
-                  ?.duplicateStaging ?? 0
-              }
-            />
-
-            <RunMetric
-              label="Errors"
-              value={
-                runResult.counts
-                  ?.errors ?? 0
-              }
-              error={
-                (runResult.counts
-                  ?.errors ?? 0) > 0
-              }
-            />
-
-          </div>
-
-        </div>
-      )}
-
-      {/* =====================================================
-          PROCESSING DESTINATIONS
-      ====================================================== */}
-
-      <div className="dashboard-two-column">
-
-        {/* MASTER + HISTORY */}
+        {/* MASTER & HISTORY */}
 
         <div className="panel">
 
@@ -559,55 +480,40 @@ function Dashboard() {
 
           </div>
 
-          <div className="operation-row">
+          <div
+            style={{
+              padding:
+                "0 18px",
+            }}
+          >
 
-            <div className="operation-icon">
-              <Database size={20} />
-            </div>
-
-            <div>
-              <strong>
-                Master Records
-              </strong>
-
-              <span>
-                {stats.master} active records
-              </span>
-            </div>
-
-            <CheckCircle2
-              size={20}
-              className="success-icon"
+            <StatusRow
+              icon={
+                <Database
+                  size={21}
+                />
+              }
+              title="Master Records"
+              description={`${stats.master} active records`}
+              ok
             />
 
-          </div>
-
-          <div className="operation-row">
-
-            <div className="operation-icon">
-              <History size={20} />
-            </div>
-
-            <div>
-              <strong>
-                Change History
-              </strong>
-
-              <span>
-                {stats.history} recorded changes
-              </span>
-            </div>
-
-            <CheckCircle2
-              size={20}
-              className="success-icon"
+            <StatusRow
+              icon={
+                <History
+                  size={21}
+                />
+              }
+              title="Change History"
+              description={`${stats.history} recorded changes`}
+              ok
             />
 
           </div>
 
         </div>
 
-        {/* APPROVAL */}
+        {/* APPROVAL QUEUE */}
 
         <div className="panel">
 
@@ -619,47 +525,245 @@ function Dashboard() {
               </h3>
 
               <p>
-                Changes requiring human review
+                Changes requiring human
+                review
               </p>
             </div>
 
           </div>
 
-          {stats.approval > 0 ? (
-            <div className="alert-box">
+          <div
+            style={{
+              padding:
+                "18px",
+            }}
+          >
 
-              <AlertTriangle size={22} />
+            {stats.approval >
+            0 ? (
+              <div
+                style={{
+                  display:
+                    "flex",
+                  alignItems:
+                    "center",
+                  gap: "15px",
+                  padding:
+                    "20px",
+                  border:
+                    "1px solid #f0d98a",
+                  borderRadius:
+                    "12px",
+                  background:
+                    "#fffbea",
+                }}
+              >
 
-              <div>
-                <strong>
-                  {stats.approval} pending
-                  approval
-                  {stats.approval !== 1
-                    ? "s"
-                    : ""}
-                </strong>
+                <AlertTriangle
+                  size={25}
+                />
 
-                <span>
-                  Review proposed master
-                  changes before applying.
-                </span>
+                <div>
+                  <strong>
+                    {stats.approval}{" "}
+                    pending approval
+                    {stats.approval >
+                    1
+                      ? "s"
+                      : ""}
+                  </strong>
+
+                  <p
+                    style={{
+                      margin:
+                        "5px 0 0",
+                    }}
+                  >
+                    Review proposed
+                    master changes
+                    before applying.
+                  </p>
+                </div>
+
               </div>
+            ) : (
+              <div
+                style={{
+                  display:
+                    "flex",
+                  alignItems:
+                    "center",
+                  gap: "12px",
+                  padding:
+                    "20px",
+                }}
+              >
 
+                <CheckCircle2
+                  size={24}
+                />
+
+                <div>
+                  <strong>
+                    No pending approvals
+                  </strong>
+
+                  <p
+                    style={{
+                      margin:
+                        "5px 0 0",
+                    }}
+                  >
+                    Approval queue is
+                    clear.
+                  </p>
+                </div>
+
+              </div>
+            )}
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ===================================================
+          LATEST TIER 1 RESULT
+      ==================================================== */}
+
+      <div className="panel">
+
+        <div className="panel-header">
+
+          <div>
+            <h3>
+              Latest Tier 1 Run
+            </h3>
+
+            <p>
+              Deterministic ISIN matching
+              result
+            </p>
+          </div>
+
+        </div>
+
+        <div
+          style={{
+            padding:
+              "20px",
+          }}
+        >
+
+          {!runResult ? (
+            <div
+              className="table-empty"
+            >
+              <Play
+                size={20}
+              />
+
+              <span>
+                No Tier 1 run from this
+                session yet.
+              </span>
             </div>
           ) : (
-            <div className="clear-box">
+            <div
+              style={{
+                display:
+                  "grid",
+                gridTemplateColumns:
+                  "repeat(5, minmax(0, 1fr))",
+                gap: "14px",
+              }}
+            >
 
-              <CheckCircle2 size={22} />
+              <RunValue
+                title="Run ID"
+                value={
+                  runResult.runId ||
+                  "-"
+                }
+              />
 
-              <div>
-                <strong>
-                  No pending approvals
-                </strong>
+              <RunValue
+                title="Staging"
+                value={
+                  runResult.counts
+                    ?.totalStaging ??
+                  0
+                }
+              />
 
-                <span>
-                  Approval queue is clear.
-                </span>
-              </div>
+              <RunValue
+                title="Matched"
+                value={
+                  runResult.counts
+                    ?.matched ??
+                  0
+                }
+              />
+
+              <RunValue
+                title="Updated"
+                value={
+                  runResult.counts
+                    ?.updated ??
+                  0
+                }
+              />
+
+              <RunValue
+                title="New Records"
+                value={
+                  runResult.counts
+                    ?.newRecords ??
+                  0
+                }
+              />
+
+              <RunValue
+                title="Unchanged"
+                value={
+                  runResult.counts
+                    ?.unchanged ??
+                  0
+                }
+              />
+
+              <RunValue
+                title="Unmatched"
+                value={
+                  runResult.counts
+                    ?.unmatched ??
+                  0
+                }
+              />
+
+              <RunValue
+                title="Errors"
+                value={
+                  runResult.counts
+                    ?.errors ??
+                  0
+                }
+              />
+
+              <RunValue
+                title="Duplicates"
+                value={
+                  runResult.counts
+                    ?.duplicateStaging ??
+                  0
+                }
+              />
+
+              <RunValue
+                title="Duration"
+                value={`${runResult.duration ?? 0} ms`}
+              />
 
             </div>
           )}
@@ -668,11 +772,17 @@ function Dashboard() {
 
       </div>
 
-      {/* =====================================================
+      {/* ===================================================
           AI TIER 2
-      ====================================================== */}
+      ==================================================== */}
 
-      <div className="panel">
+      <div
+        className="panel"
+        style={{
+          marginTop:
+            "22px",
+        }}
+      >
 
         <div className="panel-header">
 
@@ -687,57 +797,51 @@ function Dashboard() {
             </p>
           </div>
 
-          <div className="status-info">
-            <Brain size={17} />
-
-            NOT CONNECTED
-          </div>
-
         </div>
 
-        <div className="ai-status">
-
-          <Brain size={32} />
-
-          <div>
-            <strong>
-              AI Agent Layer
-            </strong>
-
-            <span>
-              Tier 2 agent processing will
-              handle unresolved ISINs after
-              Tier 1 matching.
-            </span>
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* =====================================================
-          REFRESH
-      ====================================================== */}
-
-      <div className="dashboard-actions">
-
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={fetchDashboardStats}
-          disabled={loadingStats}
+        <div
+          style={{
+            padding:
+              "20px",
+          }}
         >
-          <RefreshCw
-            size={16}
-            className={
-              loadingStats
-                ? "spin"
-                : ""
-            }
-          />
 
-          Refresh Dashboard
-        </button>
+          <div
+            style={{
+              display:
+                "flex",
+              alignItems:
+                "center",
+              gap: "12px",
+            }}
+          >
+
+            <Bot
+              size={24}
+            />
+
+            <div>
+
+              <strong>
+                NOT CONNECTED
+              </strong>
+
+              <p
+                style={{
+                  margin:
+                    "5px 0 0",
+                }}
+              >
+                AI Tier 2 will process
+                unresolved ISIN records
+                after Tier 1.
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
 
       </div>
 
@@ -746,103 +850,181 @@ function Dashboard() {
 }
 
 // =========================================================
-// PIPELINE COMPONENT
+// DASHBOARD CARD
 // =========================================================
 
-function PipelineStep({
-  icon,
-  title,
-  status,
-  description,
-  type,
-}) {
-  return (
-    <div
-      className={`pipeline-step ${type}`}
-    >
-      <div className="pipeline-icon">
-        {icon}
-      </div>
-
-      <strong>
-        {title}
-      </strong>
-
-      <span>
-        {status}
-      </span>
-
-      <small>
-        {description}
-      </small>
-    </div>
-  );
-}
-
-// =========================================================
-// METRIC CARD
-// =========================================================
-
-function MetricCard({
+function DashboardCard({
   icon,
   title,
   value,
   description,
-  warning = false,
+  warning,
 }) {
   return (
     <div
-      className={`metric-card ${
-        warning
-          ? "metric-warning"
-          : ""
-      }`}
+      className="stat-card"
+      style={{
+        minHeight:
+          "145px",
+        border: warning
+          ? "1px solid #f0c84b"
+          : undefined,
+      }}
     >
-      <div className="metric-icon">
+
+      <div
+        className="stat-icon"
+      >
         {icon}
       </div>
 
       <div>
-        <span>
+
+        <p>
           {title}
+        </p>
+
+        <h3>
+          {value}
+        </h3>
+
+        <span
+          style={{
+            color:
+              "#718096",
+            fontSize:
+              "14px",
+          }}
+        >
+          {description}
         </span>
 
-        <strong>
-          {value}
-        </strong>
-
-        <small>
-          {description}
-        </small>
       </div>
+
     </div>
   );
 }
 
 // =========================================================
-// RUN METRIC
+// STATUS ROW
 // =========================================================
 
-function RunMetric({
-  label,
-  value,
-  error = false,
+function StatusRow({
+  icon,
+  title,
+  description,
+  ok,
 }) {
   return (
     <div
-      className={`run-metric ${
-        error
-          ? "run-metric-error"
-          : ""
-      }`}
+      style={{
+        display:
+          "flex",
+        alignItems:
+          "center",
+        gap: "14px",
+        padding:
+          "17px 0",
+        borderBottom:
+          "1px solid #edf0f5",
+      }}
     >
-      <span>
-        {label}
-      </span>
+
+      <div
+        style={{
+          width:
+            "42px",
+          height:
+            "42px",
+          borderRadius:
+            "10px",
+          display:
+            "flex",
+          alignItems:
+            "center",
+          justifyContent:
+            "center",
+          background:
+            "#eef5ff",
+        }}
+      >
+        {icon}
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+        }}
+      >
+
+        <strong>
+          {title}
+        </strong>
+
+        <p
+          style={{
+            margin:
+              "4px 0 0",
+          }}
+        >
+          {description}
+        </p>
+
+      </div>
+
+      {ok && (
+        <CheckCircle2
+          size={21}
+          style={{
+            color:
+              "#16a34a",
+          }}
+        />
+      )}
+
+    </div>
+  );
+}
+
+// =========================================================
+// RUN VALUE
+// =========================================================
+
+function RunValue({
+  title,
+  value,
+}) {
+  return (
+    <div
+      style={{
+        padding:
+          "14px",
+        border:
+          "1px solid #e5e7eb",
+        borderRadius:
+          "10px",
+        background:
+          "#fafbfc",
+      }}
+    >
+
+      <small
+        style={{
+          display:
+            "block",
+          color:
+            "#718096",
+          marginBottom:
+            "6px",
+        }}
+      >
+        {title}
+      </small>
 
       <strong>
         {value}
       </strong>
+
     </div>
   );
 }
