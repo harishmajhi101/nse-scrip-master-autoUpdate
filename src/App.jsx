@@ -323,7 +323,7 @@ function App() {
 
             {running
               ? "Running..."
-              : "Run Tier 1"}
+              : "Update Scrip Master"}
 
           </button>
 

@@ -28,7 +28,7 @@ function History() {
 
       setHistoryData(result.data || []);
     } catch (err) {
-      console.error("GET /history error:", err);
+      // console.error("GET /history error:", err);
       setError(
         err.message || "Failed to load change history"
       );
