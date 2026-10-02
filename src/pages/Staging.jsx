@@ -1146,13 +1146,17 @@ function Staging() {
 
       let data = {};
 
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch (parseError) {
-        throw new Error(
-          `Invalid server response (${response.status}).`
-        );
-      }
+try {
+  data = text ? JSON.parse(text) : {};
+} catch (parseError) {
+  console.error("STAGING RAW RESPONSE:", text);
+
+  throw new Error(
+    `Invalid server response (${response.status}). Server returned: ${
+      text.slice(0, 200) || "empty response"
+    }`
+  );
+}
 
       if (!response.ok || data.success === false) {
         throw new Error(
