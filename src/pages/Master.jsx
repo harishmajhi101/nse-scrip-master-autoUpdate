@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Plus, Search, RefreshCw } from "lucide-react";
 
-const API_BASE_URL =
-  "https://nse-data-sync-60066676245.development.catalystserverless.in/server/scrip_api";
+const API_BASE_URL = import.meta.env.DEV
+  ? "/api"
+  : import.meta.env.VITE_SCRIP_API_URL ||
+    "https://nse-data-sync-60066676245.development.catalystserverless.in/server/scrip_api";
 
 function Master() {
   const [masterData, setMasterData] = useState([]);
@@ -77,30 +79,24 @@ function Master() {
       setError("");
       setSuccessMessage("");
 
-      if (!formData.ISIN.trim()) {
-        setError("ISIN is required");
-        return;
-      }
-
-      if (!formData.Company_Name.trim()) {
-        setError("Company Name is required");
-        return;
-      }
-
       const response = await fetch(`${API_BASE_URL}/master`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ISIN: formData.ISIN.trim(),
-          Company_Name: formData.Company_Name.trim(),
-          Symbol: formData.Symbol.trim(),
-          NSE_Series: formData.NSE_Series || "EQ",
-          BSE_Code: formData.BSE_Code.trim(),
-          Status: formData.Status,
-          Last_Update_Source: "manual",
-        }),
+        body: JSON.stringify(
+          Object.fromEntries(
+            Object.entries({
+              ISIN: formData.ISIN.trim().toUpperCase(),
+              Company_Name: formData.Company_Name.trim(),
+              Symbol: formData.Symbol.trim().toUpperCase(),
+              NSE_Series: formData.NSE_Series.trim().toUpperCase(),
+              BSE_Code: formData.BSE_Code.trim(),
+              Status: formData.Status.trim(),
+              Last_Update_Source: "manual",
+            }).filter(([, value]) => value !== "")
+          )
+        ),
       });
 
       const result = await response.json();
@@ -310,18 +306,20 @@ function Master() {
           }}
         >
           <div
-            className="modal"
+            className="modal master-add-modal"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
               <div>
                 <h3>Add Master Record</h3>
                 <p>
-                  Create a new scrip master record.
+                  All fields are optional. Enter any available scrip information.
                 </p>
               </div>
 
               <button
+                type="button"
+                aria-label="Close"
                 className="modal-close"
                 onClick={() => {
                   if (!saving) {
@@ -333,9 +331,9 @@ function Master() {
               </button>
             </div>
 
-            <div className="form">
+            <div className="form master-form-grid">
               <label>
-                ISIN
+                <span>ISIN</span>
                 <input
                   name="ISIN"
                   value={formData.ISIN}
@@ -345,7 +343,7 @@ function Master() {
               </label>
 
               <label>
-                Company Name
+                <span>Company Name</span>
                 <input
                   name="Company_Name"
                   value={formData.Company_Name}
@@ -355,7 +353,7 @@ function Master() {
               </label>
 
               <label>
-                Symbol
+                <span>Symbol</span>
                 <input
                   name="Symbol"
                   value={formData.Symbol}
@@ -365,16 +363,24 @@ function Master() {
               </label>
 
               <label>
-                Series
-                <input
+                <span>Series</span>
+                <select
                   name="NSE_Series"
-                  value="EQ"
-                  readOnly
-                />
+                  value={formData.NSE_Series}
+                  onChange={handleChange}
+                >
+                  <option value="">Select Series</option>
+                  <option value="EQ">EQ</option>
+                  <option value="BE">BE</option>
+                  <option value="BZ">BZ</option>
+                  <option value="SM">SM</option>
+                  <option value="ST">ST</option>
+                  <option value="GB">GB</option>
+                </select>
               </label>
 
               <label>
-                BSE Code
+                <span>BSE Code</span>
                 <input
                   name="BSE_Code"
                   value={formData.BSE_Code}
@@ -384,7 +390,7 @@ function Master() {
               </label>
 
               <label>
-                Status
+                <span>Status</span>
                 <select
                   name="Status"
                   value={formData.Status}
@@ -407,6 +413,7 @@ function Master() {
 
             <div className="modal-footer">
               <button
+                type="button"
                 className="secondary-button"
                 onClick={() => setShowModal(false)}
                 disabled={saving}
@@ -415,6 +422,7 @@ function Master() {
               </button>
 
               <button
+                type="button"
                 className="primary-button"
                 onClick={handleCreateMaster}
                 disabled={saving}

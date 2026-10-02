@@ -674,7 +674,7 @@ function Dashboard({
       <div className="panel">
         <div className="panel-header">
           <div>
-            <h3>Latest Tier 1 Run</h3>
+            <h3>Latest Updated scrip master</h3>
 
             <p>
               Deterministic ISIN matching result

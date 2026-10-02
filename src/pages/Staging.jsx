@@ -1,457 +1,1064 @@
-// import { useEffect, useState } from "react";
-// import { Plus, Search, RefreshCw } from "lucide-react";
-
-// // import { Upload, X } from "lucide-react";
+// import React, { useEffect, useMemo, useState } from "react";
+// import {
+//   Plus,
+//   Upload,
+//   RefreshCw,
+//   Search,
+//   X,
+//   Save,
+//   Loader2,
+//   FileText,
+//   Database,
+//   CheckCircle2,
+// } from "lucide-react";
 
 // const API_BASE_URL =
-//   "https://nse-data-sync-60066676245.development.catalystserverless.in/server/scrip_api";
+//   import.meta.env.VITE_SCRIP_API_URL ||
+//   "/api";
 
 // function Staging() {
-//   const [stagingData, setStagingData] = useState([]);
-//   const [search, setSearch] = useState("");
+//   const [rows, setRows] = useState([]);
 
 //   const [loading, setLoading] = useState(true);
 //   const [saving, setSaving] = useState(false);
+//   const [uploading, setUploading] = useState(false);
+
+//   const [search, setSearch] = useState("");
+
+//   const [showAddModal, setShowAddModal] = useState(false);
+//   const [showUploadModal, setShowUploadModal] = useState(false);
+
+//   const [selectedFile, setSelectedFile] = useState(null);
 
 //   const [error, setError] = useState("");
-//   const [successMessage, setSuccessMessage] = useState("");
+//   const [success, setSuccess] = useState("");
 
-//   const [showModal, setShowModal] = useState(false);
-  
-
-//   const [formData, setFormData] = useState({
+//   const [form, setForm] = useState({
 //     ISIN: "",
-//     Symbol: "",
 //     Company_Name: "",
+//     Symbol: "",
 //     Series: "EQ",
 //     Listing_Date: "",
 //     Face_Value: "",
 //     Source_File: "",
 //   });
 
-//   // =========================
-//   // GET STAGING RECORDS
-//   // =========================
+//   // =====================================================
+//   // LOAD STAGING
+//   // =====================================================
 
-//   const fetchStagingData = async () => {
+//   const loadStaging = async () => {
+//     setLoading(true);
+//     setError("");
+
 //     try {
-//       setLoading(true);
-//       setError("");
+//       const response = await fetch(`${API_BASE_URL}/staging`, {
+//         method: "GET",
+//         headers: {
+//           Accept: "application/json",
+//         },
+//       });
 
-//       const response = await fetch(`${API_BASE_URL}/staging`);
+//       const text = await response.text();
 
-//       const result = await response.json();
+//       let data = {};
 
-//       if (!response.ok || !result.success) {
+//       try {
+//         data = text ? JSON.parse(text) : {};
+//       } catch (parseError) {
 //         throw new Error(
-//           result.message || "Failed to fetch staging records"
+//           `Invalid server response (${response.status}).`
 //         );
 //       }
 
-//       setStagingData(result.data || []);
+//       if (!response.ok || data.success === false) {
+//         throw new Error(
+//           data.message ||
+//             data.error ||
+//             `Failed to load staging records (${response.status}).`
+//         );
+//       }
+
+//       const stagingData =
+//         Array.isArray(data.data)
+//           ? data.data
+//           : Array.isArray(data.rows)
+//           ? data.rows
+//           : [];
+
+//       setRows(stagingData);
 //     } catch (err) {
-//       console.error("GET /staging error:", err);
-//       setError(err.message || "Failed to load staging records");
+//       console.error("STAGING LOAD ERROR:", err);
+
+//       setError(
+//         err.message ||
+//           "Unable to load staging records."
+//       );
 //     } finally {
 //       setLoading(false);
 //     }
 //   };
 
-//   // Load data when page opens
 //   useEffect(() => {
-//     fetchStagingData();
+//     loadStaging();
 //   }, []);
 
-//   // =========================
+//   // =====================================================
+//   // SEARCH
+//   // =====================================================
+
+//   const filteredRows = useMemo(() => {
+//     const value = search.trim().toLowerCase();
+
+//     if (!value) {
+//       return rows;
+//     }
+
+//     return rows.filter((row) => {
+//       return (
+//         String(row.ISIN || "")
+//           .toLowerCase()
+//           .includes(value) ||
+//         String(row.Company_Name || "")
+//           .toLowerCase()
+//           .includes(value) ||
+//         String(row.Symbol || "")
+//           .toLowerCase()
+//           .includes(value) ||
+//         String(row.Series || "")
+//           .toLowerCase()
+//           .includes(value) ||
+//         String(row.Source_File || "")
+//           .toLowerCase()
+//           .includes(value)
+//       );
+//     });
+//   }, [rows, search]);
+
+//   // =====================================================
 //   // FORM CHANGE
-//   // =========================
+//   // =====================================================
 
 //   const handleChange = (e) => {
 //     const { name, value } = e.target;
 
-//     setFormData((previous) => ({
-//       ...previous,
+//     setForm((prev) => ({
+//       ...prev,
 //       [name]: value,
 //     }));
 //   };
 
-//   // =========================
-//   // POST STAGING RECORD
-//   // =========================
+//   // =====================================================
+//   // RESET FORM
+//   // =====================================================
 
-//   const handleCreateStaging = async () => {
+//   const resetForm = () => {
+//     setForm({
+//       ISIN: "",
+//       Company_Name: "",
+//       Symbol: "",
+//       Series: "EQ",
+//       Listing_Date: "",
+//       Face_Value: "",
+//       Source_File: "",
+//     });
+
+//     setError("");
+//     setSuccess("");
+//   };
+
+//   // =====================================================
+//   // OPEN ADD STAGING
+//   // =====================================================
+
+//   const openAddModal = () => {
+//     resetForm();
+//     setShowAddModal(true);
+//   };
+
+//   // =====================================================
+//   // CLOSE ADD MODAL
+//   // =====================================================
+
+//   const closeAddModal = () => {
+//     if (saving) {
+//       return;
+//     }
+
+//     setShowAddModal(false);
+//     resetForm();
+//   };
+
+//   // =====================================================
+//   // CREATE STAGING
+//   // =====================================================
+
+// const handleCreateStaging = async (e) => {
+//   e.preventDefault();
+
+//   setError("");
+//   setSuccess("");
+//   setSaving(true);
+
+//   try {
+//     const payload = {
+//       ISIN: String(form.ISIN || "")
+//         .trim()
+//         .toUpperCase(),
+
+//       Company_Name: String(
+//         form.Company_Name || ""
+//       ).trim(),
+
+//       Symbol: String(
+//         form.Symbol || ""
+//       )
+//         .trim()
+//         .toUpperCase(),
+
+//       Series: String(
+//         form.Series || ""
+//       )
+//         .trim()
+//         .toUpperCase(),
+
+//       Listing_Date: String(
+//         form.Listing_Date || ""
+//       ).trim(),
+
+//       Face_Value: String(
+//         form.Face_Value || ""
+//       ).trim(),
+
+//       Source_File: String(
+//         form.Source_File || ""
+//       ).trim(),
+//     };
+
+//     console.log(
+//       "CREATE STAGING PAYLOAD:",
+//       payload
+//     );
+
+//     const url =
+//       `${API_BASE_URL}/staging`;
+
+//     console.log(
+//       "CREATE STAGING URL:",
+//       url
+//     );
+
+//     const response = await fetch(url, {
+//       method: "POST",
+
+//       headers: {
+//         "Content-Type": "application/json",
+//         Accept: "application/json",
+//       },
+
+//       body: JSON.stringify(payload),
+//     });
+
+//     console.log(
+//       "CREATE STAGING STATUS:",
+//       response.status
+//     );
+
+//     const text =
+//       await response.text();
+
+//     console.log(
+//       "CREATE STAGING RESPONSE:",
+//       text
+//     );
+
+//     let data = {};
+
 //     try {
-//       setSaving(true);
-//       setError("");
-//       setSuccessMessage("");
-
-//       if (!formData.ISIN.trim()) {
-//         setError("ISIN is required");
-//         return;
-//       }
-
-//       if (!formData.Company_Name.trim()) {
-//         setError("Company Name is required");
-//         return;
-//       }
-
-//       const response = await fetch(`${API_BASE_URL}/staging`, {
-//         method: "POST",
-//         headers: {
-//           "Content-Type": "application/json",
-//         },
-//         body: JSON.stringify({
-//           ISIN: formData.ISIN.trim(),
-//           Symbol: formData.Symbol.trim(),
-//           Company_Name: formData.Company_Name.trim(),
-//           Series: formData.Series || "EQ",
-//           Listing_Date: formData.Listing_Date || null,
-//           Face_Value:
-//             formData.Face_Value === ""
-//               ? null
-//               : Number(formData.Face_Value),
-//           Source_File:
-//             formData.Source_File.trim() || "manual",
-//         }),
-//       });
-
-//       const result = await response.json();
-
-//       if (!response.ok || !result.success) {
-//         throw new Error(
-//           result.message || "Failed to create staging record"
-//         );
-//       }
-
-//       setSuccessMessage(
-//         "Staging record created successfully"
+//       data =
+//         text
+//           ? JSON.parse(text)
+//           : {};
+//     } catch (parseError) {
+//       throw new Error(
+//         `Invalid server response. HTTP ${response.status}`
 //       );
+//     }
 
-//       setShowModal(false);
+//     if (
+//       !response.ok ||
+//       data.success === false
+//     ) {
+//       throw new Error(
+//         data.message ||
+//         data.error ||
+//         `Failed to save staging record. HTTP ${response.status}`
+//       );
+//     }
 
-//       setFormData({
+//     console.log(
+//       "STAGING SAVE SUCCESS:",
+//       data
+//     );
+
+//     if (data.action === "updated") {
+//       setSuccess(
+//         "Staging record updated successfully."
+//       );
+//     } else {
+//       setSuccess(
+//         "Staging record created successfully."
+//       );
+//     }
+
+//     /*
+//     |--------------------------------------------------------------------------
+//     | REFRESH STAGING TABLE
+//     |--------------------------------------------------------------------------
+//     */
+
+//     await loadStaging();
+
+//     /*
+//     |--------------------------------------------------------------------------
+//     | CLOSE MODAL
+//     |--------------------------------------------------------------------------
+//     */
+
+//     setTimeout(() => {
+//       setShowAddModal(false);
+
+//       setForm({
 //         ISIN: "",
-//         Symbol: "",
 //         Company_Name: "",
+//         Symbol: "",
 //         Series: "EQ",
 //         Listing_Date: "",
 //         Face_Value: "",
 //         Source_File: "",
 //       });
 
-//       await fetchStagingData();
+//       setSuccess("");
+//       setError("");
+//     }, 700);
+
+//   } catch (error) {
+//     console.error(
+//       "CREATE STAGING ERROR:",
+//       error
+//     );
+
+//     setError(
+//       error.message ||
+//       "Failed to save staging record."
+//     );
+
+//   } finally {
+//     setSaving(false);
+//   }
+// };
+
+//   // =====================================================
+//   // FILE SELECT
+//   // =====================================================
+
+//   const handleFileChange = (e) => {
+//     const file = e.target.files && e.target.files[0];
+
+//     setError("");
+//     setSuccess("");
+
+//     if (!file) {
+//       setSelectedFile(null);
+//       return;
+//     }
+
+//     if (!file.name.toLowerCase().endsWith(".csv")) {
+//       setError("Please select a CSV file.");
+//       e.target.value = "";
+//       setSelectedFile(null);
+//       return;
+//     }
+
+//     if (file.size > 10 * 1024 * 1024) {
+//       setError("File size must be 10 MB or less.");
+//       e.target.value = "";
+//       setSelectedFile(null);
+//       return;
+//     }
+
+//     setSelectedFile(file);
+//   };
+
+//   // =====================================================
+//   // UPLOAD STAGING FILE
+//   // =====================================================
+
+//   const handleUpload = async (e) => {
+//     e.preventDefault();
+
+//     setError("");
+//     setSuccess("");
+
+//     if (!selectedFile) {
+//       setError("Please select a CSV file.");
+//       return;
+//     }
+
+//     setUploading(true);
+
+//     try {
+//       const formData = new FormData();
+
+//       formData.append("file", selectedFile);
+
+//       const response = await fetch(
+//         `${API_BASE_URL}/staging/upload`,
+//         {
+//           method: "POST",
+//           body: formData,
+//         }
+//       );
+
+//       const text = await response.text();
+
+//       let data = {};
+
+//       try {
+//         data = text ? JSON.parse(text) : {};
+//       } catch (parseError) {
+//         throw new Error(
+//           `Invalid server response (${response.status}).`
+//         );
+//       }
+
+//       if (!response.ok || data.success === false) {
+//         throw new Error(
+//           data.message ||
+//             data.error ||
+//             `Upload failed (${response.status}).`
+//         );
+//       }
+
+//       setSuccess(
+//         data.message ||
+//           "Staging file uploaded successfully."
+//       );
+
+//       setSelectedFile(null);
+
+//       const fileInput =
+//         document.getElementById("staging-file-input");
+
+//       if (fileInput) {
+//         fileInput.value = "";
+//       }
+
+//       await loadStaging();
+
+//       setTimeout(() => {
+//         setShowUploadModal(false);
+//         setSuccess("");
+//       }, 900);
 //     } catch (err) {
-//       console.error("POST /staging error:", err);
+//       console.error("STAGING FILE UPLOAD ERROR:", err);
+
 //       setError(
-//         err.message || "Failed to create staging record"
+//         err.message ||
+//           "Unable to upload staging file."
 //       );
 //     } finally {
-//       setSaving(false);
+//       setUploading(false);
 //     }
 //   };
 
-//   // =========================
-//   // SEARCH
-//   // =========================
+//   // =====================================================
+//   // CLOSE UPLOAD MODAL
+//   // =====================================================
 
-//   const filteredData = stagingData.filter((item) => {
-//     const value = search.toLowerCase().trim();
-
-//     if (!value) {
-//       return true;
+//   const closeUploadModal = () => {
+//     if (uploading) {
+//       return;
 //     }
 
-//     return (
-//       String(item.ISIN || "")
-//         .toLowerCase()
-//         .includes(value) ||
-//       String(item.Company_Name || "")
-//         .toLowerCase()
-//         .includes(value) ||
-//       String(item.Symbol || "")
-//         .toLowerCase()
-//         .includes(value)
-//     );
-//   });
+//     setShowUploadModal(false);
+//     setSelectedFile(null);
+//     setError("");
+//     setSuccess("");
+
+//     const fileInput =
+//       document.getElementById("staging-file-input");
+
+//     if (fileInput) {
+//       fileInput.value = "";
+//     }
+//   };
+
+//   // =====================================================
+//   // RENDER
+//   // =====================================================
 
 //   return (
-//     <div>
-//       {/* =========================
+//     <div className="staging-page">
+//       {/* =================================================
 //           PAGE HEADER
-//       ========================= */}
+//           ================================================= */}
 
-//       <div className="page-heading">
+//       <div className="page-header">
 //         <div>
-//           <h2>Staging</h2>
-//           <p>NSE records waiting for processing</p>
+//           <h1>Scrip Staging</h1>
+
+//           <p>
+//             Review and manage staging records before Tier 1
+//             processing.
+//           </p>
 //         </div>
 
-//         <button
-//           className="primary-button"
-//           onClick={() => {
-//             setError("");
-//             setSuccessMessage("");
-//             setShowModal(true);
-//           }}
-//         >
-//           <Plus size={17} />
-//           Add Staging
-//         </button>
+//         <div className="page-header-actions">
+//           <button
+//             className="secondary-button"
+//             onClick={loadStaging}
+//             disabled={loading}
+//           >
+//             <RefreshCw
+//               size={16}
+//               className={loading ? "button-spinner" : ""}
+//             />
+
+//             {loading ? "Refreshing..." : "Refresh"}
+//           </button>
+
+//           <button
+//             className="secondary-button"
+//             onClick={() => {
+//               setError("");
+//               setSuccess("");
+//               setShowUploadModal(true);
+//             }}
+//           >
+//             <Upload size={16} />
+//             Upload Staging File
+//           </button>
+
+          
+
+//           <button
+//             className="primary-button"
+//             onClick={openAddModal}
+//           >
+//             <Plus size={17} />
+//             Add Staging
+//           </button>
+//         </div>
 //       </div>
 
-//       {/* =========================
-//           SUCCESS
-//       ========================= */}
-
-//       {successMessage && (
-//         <div className="success-message">
-//           {successMessage}
-//         </div>
-//       )}
-
-//       {/* =========================
+//       {/* =================================================
 //           ERROR
-//       ========================= */}
+//           ================================================= */}
 
-//       {error && (
-//         <div className="error-message">
-//           {error}
+//       {error && !showAddModal && !showUploadModal && (
+//         <div className="form-alert form-alert-error staging-page-alert">
+//           <span>{error}</span>
+
+//           <button
+//             type="button"
+//             onClick={() => setError("")}
+//           >
+//             <X size={15} />
+//           </button>
 //         </div>
 //       )}
 
-//       {/* =========================
-//           TOOLBAR
-//       ========================= */}
+//       {/* =================================================
+//           SUCCESS
+//           ================================================= */}
 
-//       <div className="toolbar">
-//         <div className="search-box">
-//           <Search size={18} />
+//       {success && !showAddModal && !showUploadModal && (
+//         <div className="form-alert form-alert-success staging-page-alert">
+//           <CheckCircle2 size={18} />
+
+//           <span>{success}</span>
+//         </div>
+//       )}
+
+//       {/* =================================================
+//           SEARCH + COUNT
+//           ================================================= */}
+
+//       <div className="staging-toolbar">
+//         <div className="staging-search">
+//           <Search size={17} />
 
 //           <input
 //             type="text"
-//             placeholder="Search ISIN, company or symbol..."
 //             value={search}
 //             onChange={(e) => setSearch(e.target.value)}
+//             placeholder="Search ISIN, company, symbol..."
 //           />
+
+//           {search && (
+//             <button
+//               type="button"
+//               onClick={() => setSearch("")}
+//             >
+//               <X size={15} />
+//             </button>
+//           )}
 //         </div>
 
-//         <button
-//           className="secondary-button"
-//           onClick={fetchStagingData}
-//           disabled={loading}
-//         >
-//           <RefreshCw
-//             size={16}
-//             className={loading ? "spin" : ""}
-//           />
-//           Refresh
-//         </button>
+//         <div className="staging-count">
+//           <Database size={16} />
+
+//           <span>
+//             {filteredRows.length} record
+//             {filteredRows.length === 1 ? "" : "s"}
+//           </span>
+//         </div>
 //       </div>
 
-//       {/* =========================
+//       {/* =================================================
 //           TABLE
-//       ========================= */}
+//           ================================================= */}
 
-//       <div className="panel">
-//         <div className="table-wrapper">
-//           <table>
-//             <thead>
-//               <tr>
-//                 <th>ISIN</th>
-//                 <th>Company Name</th>
-//                 <th>Symbol</th>
-//                 <th>Series</th>
-//                 <th>Listing Date</th>
-//                 <th>Face Value</th>
-//                 <th>Source File</th>
-//               </tr>
-//             </thead>
+//       <div className="staging-table-card">
+//         {loading ? (
+//           <div className="staging-empty">
+//             <Loader2
+//               size={28}
+//               className="button-spinner"
+//             />
 
-//             <tbody>
-//               {loading ? (
+//             <p>Loading staging records...</p>
+//           </div>
+//         ) : filteredRows.length === 0 ? (
+//           <div className="staging-empty">
+//             <FileText size={34} />
+
+//             <h3>No staging records found</h3>
+
+//             <p>
+//               Add a staging record manually or upload an NSE
+//               CSV file.
+//             </p>
+//           </div>
+//         ) : (
+//           <div className="staging-table-wrapper">
+//             <table className="staging-table">
+//               <thead>
 //                 <tr>
-//                   <td colSpan="7">
-//                     <div className="table-empty">
-//                       Loading staging records...
-//                     </div>
-//                   </td>
+//                   <th>ISIN</th>
+//                   <th>Company Name</th>
+//                   <th>Symbol</th>
+//                   <th>Series</th>
+//                   <th>Listing Date</th>
+//                   <th>Face Value</th>
+//                   <th>Source File</th>
 //                 </tr>
-//               ) : filteredData.length === 0 ? (
-//                 <tr>
-//                   <td colSpan="7">
-//                     <div className="table-empty">
-//                       No records found
-//                     </div>
-//                   </td>
-//                 </tr>
-//               ) : (
-//                 filteredData.map((item) => (
-//                   <tr key={item.ROWID || item.ISIN}>
-//                     <td className="isin">
-//                       {item.ISIN}
+//               </thead>
+
+//               <tbody>
+//                 {filteredRows.map((row, index) => (
+//                   <tr
+//                     key={
+//                       row.ROWID ||
+//                       row.ROW_ID ||
+//                       `${row.ISIN}-${index}`
+//                     }
+//                   >
+//                     <td>
+//                       <span className="table-isin">
+//                         {row.ISIN || "-"}
+//                       </span>
 //                     </td>
 
 //                     <td>
-//                       {item.Company_Name}
+//                       {row.Company_Name || "-"}
 //                     </td>
 
 //                     <td>
-//                       <strong>
-//                         {item.Symbol || "-"}
-//                       </strong>
+//                       {row.Symbol || "-"}
 //                     </td>
 
 //                     <td>
-//                       {item.Series || "EQ"}
+//                       {row.Series || "-"}
 //                     </td>
 
 //                     <td>
-//                       {item.Listing_Date || "-"}
+//                       {row.Listing_Date || "-"}
 //                     </td>
 
 //                     <td>
-//                       {item.Face_Value ?? "-"}
+//                       {row.Face_Value || "-"}
 //                     </td>
 
 //                     <td>
-//                       {item.Source_File || "-"}
+//                       {row.Source_File || "-"}
 //                     </td>
 //                   </tr>
-//                 ))
-//               )}
-//             </tbody>
-//           </table>
-//         </div>
+//                 ))}
+//               </tbody>
+//             </table>
+//           </div>
+//         )}
 //       </div>
 
-//       {/* =========================
+//       {/* =================================================
 //           ADD STAGING MODAL
-//       ========================= */}
+//           ================================================= */}
 
-//       {showModal && (
+//       {showAddModal && (
 //         <div
 //           className="modal-overlay"
-//           onClick={() => {
-//             if (!saving) {
-//               setShowModal(false);
+//           onMouseDown={(e) => {
+//             if (e.target === e.currentTarget) {
+//               closeAddModal();
 //             }
 //           }}
 //         >
-//           <div
-//             className="modal"
-//             onClick={(e) => e.stopPropagation()}
-//           >
+//           <div className="modal-card staging-add-modal">
 //             <div className="modal-header">
 //               <div>
-//                 <h3>Add Staging Record</h3>
+//                 <h2>Add Staging Record</h2>
+
 //                 <p>
-//                   Add an NSE record to the staging table.
+//                   Enter the available staging information.
+//                   All fields are optional.
 //                 </p>
 //               </div>
 
 //               <button
+//                 type="button"
 //                 className="modal-close"
-//                 onClick={() => {
-//                   if (!saving) {
-//                     setShowModal(false);
+//                 onClick={closeAddModal}
+//                 disabled={saving}
+//               >
+//                 <X size={18} />
+//               </button>
+//             </div>
+
+//             <form onSubmit={handleCreateStaging}>
+//               {error && (
+//                 <div className="form-alert form-alert-error">
+//                   <span>{error}</span>
+//                 </div>
+//               )}
+
+//               {success && (
+//                 <div className="form-alert form-alert-success">
+//                   <CheckCircle2 size={18} />
+
+//                   <span>{success}</span>
+//                 </div>
+//               )}
+
+//               <div className="staging-form-grid">
+//                 {/* ISIN */}
+//                 <div className="form-field">
+//                   <label htmlFor="staging-ISIN">
+//                     ISIN
+//                   </label>
+
+//                   <input
+//                     id="staging-ISIN"
+//                     name="ISIN"
+//                     value={form.ISIN}
+//                     onChange={handleChange}
+//                     placeholder="INE123A01012"
+//                     maxLength={12}
+//                   />
+//                 </div>
+
+//                 {/* COMPANY */}
+//                 <div className="form-field">
+//                   <label htmlFor="staging-Company_Name">
+//                     Company Name
+//                   </label>
+
+//                   <input
+//                     id="staging-Company_Name"
+//                     name="Company_Name"
+//                     value={form.Company_Name}
+//                     onChange={handleChange}
+//                     placeholder="Company Name Limited"
+//                   />
+//                 </div>
+
+//                 {/* SYMBOL */}
+//                 <div className="form-field">
+//                   <label htmlFor="staging-Symbol">
+//                     Symbol
+//                   </label>
+
+//                   <input
+//                     id="staging-Symbol"
+//                     name="Symbol"
+//                     value={form.Symbol}
+//                     onChange={handleChange}
+//                     placeholder="ABC"
+//                   />
+//                 </div>
+
+//                 {/* SERIES */}
+//                 <div className="form-field">
+//                   <label htmlFor="staging-Series">
+//                     Series
+//                   </label>
+
+//                   <select
+//                     id="staging-Series"
+//                     name="Series"
+//                     value={form.Series}
+//                     onChange={handleChange}
+//                   >
+//                     <option value="">Select Series</option>
+//                     <option value="EQ">EQ</option>
+//                     <option value="BE">BE</option>
+//                     <option value="BZ">BZ</option>
+//                     <option value="SM">SM</option>
+//                     <option value="ST">ST</option>
+//                     <option value="GB">GB</option>
+//                   </select>
+//                 </div>
+
+//                 {/* LISTING DATE */}
+//                 <div className="form-field">
+//                   <label htmlFor="staging-Listing_Date">
+//                     Listing Date
+//                   </label>
+
+//                   <input
+//                     id="staging-Listing_Date"
+//                     name="Listing_Date"
+//                     type="date"
+//                     value={form.Listing_Date}
+//                     onChange={handleChange}
+//                   />
+//                 </div>
+
+//                 {/* FACE VALUE */}
+//                 <div className="form-field">
+//                   <label htmlFor="staging-Face_Value">
+//                     Face Value
+//                   </label>
+
+//                   <input
+//                     id="staging-Face_Value"
+//                     name="Face_Value"
+//                     type="text"
+//                     value={form.Face_Value}
+//                     onChange={handleChange}
+//                     placeholder="10"
+//                   />
+//                 </div>
+
+//                 {/* SOURCE FILE */}
+//                 <div className="form-field full-width">
+//                   <label htmlFor="staging-Source_File">
+//                     Source File
+//                   </label>
+
+//                   <input
+//                     id="staging-Source_File"
+//                     name="Source_File"
+//                     value={form.Source_File}
+//                     onChange={handleChange}
+//                     placeholder="EQUITY_L.csv"
+//                   />
+//                 </div>
+//               </div>
+
+//               <div className="modal-footer">
+//                 <button
+//                   type="button"
+//                   className="secondary-button"
+//                   onClick={closeAddModal}
+//                   disabled={saving}
+//                 >
+//                   Cancel
+//                 </button>
+
+//                 <button
+//                   type="submit"
+//                   className="primary-button"
+//                   disabled={saving}
+//                 >
+//                   {saving ? (
+//                     <>
+//                       <Loader2
+//                         size={17}
+//                         className="button-spinner"
+//                       />
+//                       Creating...
+//                     </>
+//                   ) : (
+//                     <>
+//                       <Save size={17} />
+//                       Create Staging
+//                     </>
+//                   )}
+//                 </button>
+//               </div>
+//             </form>
+//           </div>
+//         </div>
+//       )}
+
+//       {/* =================================================
+//           UPLOAD MODAL
+//           ================================================= */}
+
+//       {showUploadModal && (
+//         <div
+//           className="modal-overlay"
+//           onMouseDown={(e) => {
+//             if (e.target === e.currentTarget) {
+//               closeUploadModal();
+//             }
+//           }}
+//         >
+//           <div className="modal-card staging-upload-modal">
+//             <div className="modal-header">
+//               <div>
+//                 <h2>Upload Staging File</h2>
+
+//                 <p>
+//                   Upload an NSE staging CSV file.
+//                 </p>
+//               </div>
+
+//               <button
+//                 type="button"
+//                 className="modal-close"
+//                 onClick={closeUploadModal}
+//                 disabled={uploading}
+//               >
+//                 <X size={18} />
+//               </button>
+//             </div>
+
+//             <form onSubmit={handleUpload}>
+//               {error && (
+//                 <div className="form-alert form-alert-error">
+//                   <span>{error}</span>
+//                 </div>
+//               )}
+
+//               {success && (
+//                 <div className="form-alert form-alert-success">
+//                   <CheckCircle2 size={18} />
+
+//                   <span>{success}</span>
+//                 </div>
+//               )}
+
+//               <div className="upload-area">
+//                 <Upload size={34} />
+
+//                 <h3>
+//                   Select CSV file
+//                 </h3>
+
+//                 <p>
+//                   Maximum file size: 10 MB
+//                 </p>
+
+//                 <label
+//                   htmlFor="staging-file-input"
+//                   className="file-select-button"
+//                 >
+//                   Choose CSV File
+//                 </label>
+
+//                 <input
+//                   id="staging-file-input"
+//                   type="file"
+//                   accept=".csv,text/csv"
+//                   onChange={handleFileChange}
+//                   hidden
+//                 />
+
+//                 {selectedFile && (
+//                   <div className="selected-file">
+//                     <FileText size={18} />
+
+//                     <div>
+//                       <strong>
+//                         {selectedFile.name}
+//                       </strong>
+
+//                       <span>
+//                         {(
+//                           selectedFile.size /
+//                           1024 /
+//                           1024
+//                         ).toFixed(2)}{" "}
+//                         MB
+//                       </span>
+//                     </div>
+
+//                     <button
+//                       type="button"
+//                       onClick={() => {
+//                         setSelectedFile(null);
+
+//                         const input =
+//                           document.getElementById(
+//                             "staging-file-input"
+//                           );
+
+//                         if (input) {
+//                           input.value = "";
+//                         }
+//                       }}
+//                     >
+//                       <X size={16} />
+//                     </button>
+//                   </div>
+//                 )}
+//               </div>
+
+//               <div className="upload-info">
+//                 <strong>Supported files</strong>
+
+//                 <span>
+//                   EQUITY_L.csv or SME_EQUITY_L.csv
+//                 </span>
+//               </div>
+
+//               <div className="modal-footer">
+//                 <button
+//                   type="button"
+//                   className="secondary-button"
+//                   onClick={closeUploadModal}
+//                   disabled={uploading}
+//                 >
+//                   Cancel
+//                 </button>
+
+//                 <button
+//                   type="submit"
+//                   className="primary-button"
+//                   disabled={
+//                     uploading || !selectedFile
 //                   }
-//                 }}
-//               >
-//                 ×
-//               </button>
-//             </div>
-
-//             <div className="form">
-//               <label>
-//                 ISIN
-//                 <input
-//                   name="ISIN"
-//                   value={formData.ISIN}
-//                   onChange={handleChange}
-//                   placeholder="INE123A01012"
-//                 />
-//               </label>
-
-//               <label>
-//                 Company Name
-//                 <input
-//                   name="Company_Name"
-//                   value={formData.Company_Name}
-//                   onChange={handleChange}
-//                   placeholder="Company Name Limited"
-//                 />
-//               </label>
-
-//               <label>
-//                 Symbol
-//                 <input
-//                   name="Symbol"
-//                   value={formData.Symbol}
-//                   onChange={handleChange}
-//                   placeholder="ABC"
-//                 />
-//               </label>
-
-//               <label>
-//                 Series
-//                 <input
-//                   name="Series"
-//                   value="EQ"
-//                   readOnly
-//                 />
-//               </label>
-
-//               <label>
-//                 Listing Date
-//                 <input
-//                   type="date"
-//                   name="Listing_Date"
-//                   value={formData.Listing_Date}
-//                   onChange={handleChange}
-//                 />
-//               </label>
-
-//               <label>
-//                 Face Value
-//                 <input
-//                   type="number"
-//                   name="Face_Value"
-//                   value={formData.Face_Value}
-//                   onChange={handleChange}
-//                   placeholder="10"
-//                 />
-//               </label>
-
-//               <label>
-//                 Source File
-//                 <input
-//                   name="Source_File"
-//                   value={formData.Source_File}
-//                   onChange={handleChange}
-//                   placeholder="EQUITY_L.csv"
-//                 />
-//               </label>
-//             </div>
-
-//             <div className="modal-footer">
-//               <button
-//                 className="secondary-button"
-//                 onClick={() => setShowModal(false)}
-//                 disabled={saving}
-//               >
-//                 Cancel
-//               </button>
-
-//               <button
-//                 className="primary-button"
-//                 onClick={handleCreateStaging}
-//                 disabled={saving}
-//               >
-//                 {saving
-//                   ? "Creating..."
-//                   : "Create Staging"}
-//               </button>
-//             </div>
+//                 >
+//                   {uploading ? (
+//                     <>
+//                       <Loader2
+//                         size={17}
+//                         className="button-spinner"
+//                       />
+//                       Uploading...
+//                     </>
+//                   ) : (
+//                     <>
+//                       <Upload size={17} />
+//                       Upload File
+//                     </>
+//                   )}
+//                 </button>
+//               </div>
+//             </form>
 //           </div>
 //         </div>
 //       )}
@@ -460,203 +1067,437 @@
 // }
 
 // export default Staging;
-
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Plus,
-  Search,
-  RefreshCw,
   Upload,
+  RefreshCw,
+  Search,
   X,
+  Save,
+  Loader2,
+  FileText,
+  Database,
+  CheckCircle2,
 } from "lucide-react";
 
-const API_BASE_URL =
-  "https://nse-data-sync-60066676245.development.catalystserverless.in/server/scrip_api";
+/*
+ * LOCAL DEVELOPMENT:
+ * Always use the Vite proxy so the browser calls:
+ *   http://localhost:5173/api/...
+ *
+ * Vite forwards /api/... to the Catalyst function.
+ *
+ * PRODUCTION:
+ * Use VITE_SCRIP_API_URL if it is configured.
+ */
+const API_BASE_URL = import.meta.env.DEV
+  ? "/api"
+  : import.meta.env.VITE_SCRIP_API_URL || "/api";
 
 function Staging() {
-  const [stagingData, setStagingData] = useState([]);
-  const [search, setSearch] = useState("");
+  const [rows, setRows] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [search, setSearch] = useState("");
 
-  // Add staging modal
-  const [showModal, setShowModal] = useState(false);
-
-  // Upload staging modal
+  const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+
   const [selectedFile, setSelectedFile] = useState(null);
 
-  const fileInputRef = useRef(null);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     ISIN: "",
-    Symbol: "",
     Company_Name: "",
+    Symbol: "",
     Series: "EQ",
     Listing_Date: "",
     Face_Value: "",
     Source_File: "",
   });
 
-  // =========================================================
-  // GET STAGING RECORDS
-  // =========================================================
+  // =====================================================
+  // LOAD STAGING
+  // =====================================================
 
-  const fetchStagingData = async () => {
+  const loadStaging = async () => {
+    setLoading(true);
+    setError("");
+
     try {
-      setLoading(true);
-      setError("");
+      const stagingUrl = `${API_BASE_URL}/staging`;
 
-      const response = await fetch(`${API_BASE_URL}/staging`);
+      console.log("LOAD STAGING URL:", stagingUrl);
 
-      const result = await response.json();
+      const response = await fetch(stagingUrl, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
 
-      if (!response.ok || !result.success) {
+      const text = await response.text();
+
+      let data = {};
+
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (parseError) {
         throw new Error(
-          result.message || "Failed to fetch staging records"
+          `Invalid server response (${response.status}).`
         );
       }
 
-      setStagingData(result.data || []);
+      if (!response.ok || data.success === false) {
+        throw new Error(
+          data.message ||
+            data.error ||
+            `Failed to load staging records (${response.status}).`
+        );
+      }
+
+      const stagingData =
+        Array.isArray(data.data)
+          ? data.data
+          : Array.isArray(data.rows)
+          ? data.rows
+          : [];
+
+      setRows(stagingData);
     } catch (err) {
-      console.error("GET /staging error:", err);
+      console.error("STAGING LOAD ERROR:", err);
 
       setError(
-        err.message || "Failed to load staging records"
+        err.message ||
+          "Unable to load staging records."
       );
     } finally {
       setLoading(false);
     }
   };
 
-  // =========================================================
-  // LOAD DATA WHEN PAGE OPENS
-  // =========================================================
-
   useEffect(() => {
-    fetchStagingData();
+    loadStaging();
   }, []);
 
-  // =========================================================
+  // =====================================================
+  // SEARCH
+  // =====================================================
+
+  const filteredRows = useMemo(() => {
+    const value = search.trim().toLowerCase();
+
+    if (!value) {
+      return rows;
+    }
+
+    return rows.filter((row) => {
+      return (
+        String(row.ISIN || "")
+          .toLowerCase()
+          .includes(value) ||
+        String(row.Company_Name || "")
+          .toLowerCase()
+          .includes(value) ||
+        String(row.Symbol || "")
+          .toLowerCase()
+          .includes(value) ||
+        String(row.Series || "")
+          .toLowerCase()
+          .includes(value) ||
+        String(row.Source_File || "")
+          .toLowerCase()
+          .includes(value)
+      );
+    });
+  }, [rows, search]);
+
+  // =====================================================
   // FORM CHANGE
-  // =========================================================
+  // =====================================================
 
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setFormData((previous) => ({
-      ...previous,
+    setForm((prev) => ({
+      ...prev,
       [name]: value,
     }));
   };
 
-  // =========================================================
-  // OPEN ADD STAGING MODAL
-  // =========================================================
+  // =====================================================
+  // RESET FORM
+  // =====================================================
+
+  const resetForm = () => {
+    setForm({
+      ISIN: "",
+      Company_Name: "",
+      Symbol: "",
+      Series: "EQ",
+      Listing_Date: "",
+      Face_Value: "",
+      Source_File: "",
+    });
+
+    setError("");
+    setSuccess("");
+  };
+
+  // =====================================================
+  // OPEN ADD STAGING
+  // =====================================================
 
   const openAddModal = () => {
-    setError("");
-    setSuccessMessage("");
-    setShowModal(true);
+    resetForm();
+    setShowAddModal(true);
   };
 
-  // =========================================================
-  // OPEN UPLOAD MODAL
-  // =========================================================
+  // =====================================================
+  // CLOSE ADD MODAL
+  // =====================================================
 
-  const openUploadModal = () => {
-    setError("");
-    setSuccessMessage("");
-    setSelectedFile(null);
-    setShowUploadModal(true);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  // =========================================================
-  // CLOSE UPLOAD MODAL
-  // =========================================================
-
-  const closeUploadModal = () => {
-    if (uploading) {
+  const closeAddModal = () => {
+    if (saving) {
       return;
     }
 
-    setShowUploadModal(false);
-    setSelectedFile(null);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    setShowAddModal(false);
+    resetForm();
   };
 
-  // =========================================================
-  // SELECT CSV FILE
-  // =========================================================
+  // =====================================================
+  // CREATE STAGING
+  // =====================================================
+
+const handleCreateStaging = async (e) => {
+  e.preventDefault();
+
+  setError("");
+  setSuccess("");
+  setSaving(true);
+
+  try {
+    const payload = {
+      ISIN: String(form.ISIN || "")
+        .trim()
+        .toUpperCase(),
+
+      Company_Name: String(
+        form.Company_Name || ""
+      ).trim(),
+
+      Symbol: String(
+        form.Symbol || ""
+      )
+        .trim()
+        .toUpperCase(),
+
+      Series: String(
+        form.Series || ""
+      )
+        .trim()
+        .toUpperCase(),
+
+      Listing_Date: String(
+        form.Listing_Date || ""
+      ).trim(),
+
+      Face_Value: String(
+        form.Face_Value || ""
+      ).trim(),
+
+      Source_File: String(
+        form.Source_File || ""
+      ).trim(),
+    };
+
+    console.log(
+      "CREATE STAGING PAYLOAD:",
+      payload
+    );
+
+    const url =
+      `${API_BASE_URL}/staging`;
+
+    console.log(
+      "CREATE STAGING URL:",
+      url
+    );
+
+    console.log(
+      "CREATE STAGING MODE:",
+      import.meta.env.DEV
+        ? "LOCAL VITE PROXY"
+        : "PRODUCTION API"
+    );
+
+    const response = await fetch(url, {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+
+      body: JSON.stringify(payload),
+    });
+
+    console.log(
+      "CREATE STAGING STATUS:",
+      response.status
+    );
+
+    const text =
+      await response.text();
+
+    console.log(
+      "CREATE STAGING RESPONSE:",
+      text
+    );
+
+    let data = {};
+
+    try {
+      data =
+        text
+          ? JSON.parse(text)
+          : {};
+    } catch (parseError) {
+      throw new Error(
+        `Invalid server response. HTTP ${response.status}`
+      );
+    }
+
+    if (
+      !response.ok ||
+      data.success === false
+    ) {
+      throw new Error(
+        data.message ||
+        data.error ||
+        `Failed to save staging record. HTTP ${response.status}`
+      );
+    }
+
+    console.log(
+      "STAGING SAVE SUCCESS:",
+      data
+    );
+
+    if (data.action === "updated") {
+      setSuccess(
+        "Staging record updated successfully."
+      );
+    } else {
+      setSuccess(
+        "Staging record created successfully."
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | REFRESH STAGING TABLE
+    |--------------------------------------------------------------------------
+    */
+
+    await loadStaging();
+
+    /*
+    |--------------------------------------------------------------------------
+    | CLOSE MODAL
+    |--------------------------------------------------------------------------
+    */
+
+    setTimeout(() => {
+      setShowAddModal(false);
+
+      setForm({
+        ISIN: "",
+        Company_Name: "",
+        Symbol: "",
+        Series: "EQ",
+        Listing_Date: "",
+        Face_Value: "",
+        Source_File: "",
+      });
+
+      setSuccess("");
+      setError("");
+    }, 700);
+
+  } catch (error) {
+    console.error(
+      "CREATE STAGING ERROR:",
+      error
+    );
+
+    setError(
+      error.message ||
+      "Failed to save staging record."
+    );
+
+  } finally {
+    setSaving(false);
+  }
+};
+
+  // =====================================================
+  // FILE SELECT
+  // =====================================================
 
   const handleFileChange = (e) => {
-    setError("");
-    setSuccessMessage("");
+    const file = e.target.files && e.target.files[0];
 
-    const file = e.target.files?.[0];
+    setError("");
+    setSuccess("");
 
     if (!file) {
       setSelectedFile(null);
       return;
     }
 
-    const fileName = file.name.toLowerCase();
-
-    if (!fileName.endsWith(".csv")) {
-      setSelectedFile(null);
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
+    if (!file.name.toLowerCase().endsWith(".csv")) {
       setError("Please select a CSV file.");
+      e.target.value = "";
+      setSelectedFile(null);
       return;
     }
 
-    // 10 MB frontend check
-    const maxSize = 10 * 1024 * 1024;
-
-    if (file.size > maxSize) {
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File size must be 10 MB or less.");
+      e.target.value = "";
       setSelectedFile(null);
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
-      setError("File size must be less than 10 MB.");
       return;
     }
 
     setSelectedFile(file);
   };
 
-  // =========================================================
+  // =====================================================
   // UPLOAD STAGING FILE
-  // =========================================================
+  // =====================================================
 
-  const handleUploadStagingFile = async () => {
+  const handleUpload = async (e) => {
+    e.preventDefault();
+
+    setError("");
+    setSuccess("");
+
     if (!selectedFile) {
       setError("Please select a CSV file.");
       return;
     }
 
-    try {
-      setUploading(true);
-      setError("");
-      setSuccessMessage("");
+    setUploading(true);
 
+    try {
       const formData = new FormData();
 
       formData.append("file", selectedFile);
@@ -669,208 +1510,127 @@ function Staging() {
         }
       );
 
-      let result;
+      const text = await response.text();
+
+      let data = {};
 
       try {
-        result = await response.json();
-      } catch {
+        data = text ? JSON.parse(text) : {};
+      } catch (parseError) {
         throw new Error(
-          `Upload failed. Server returned HTTP ${response.status}`
+          `Invalid server response (${response.status}).`
         );
       }
 
-      if (!response.ok || !result.success) {
+      if (!response.ok || data.success === false) {
         throw new Error(
-          result.message || "Failed to upload staging file"
+          data.message ||
+            data.error ||
+            `Upload failed (${response.status}).`
         );
       }
 
-      // =====================================================
-      // SUCCESS
-      // =====================================================
-
-      const inserted =
-        result.stagingInserted ??
-        result.inserted ??
-        result.uniqueRows ??
-        0;
-
-      setSuccessMessage(
-        `Staging file uploaded successfully. ${inserted} records added to staging.`
+      setSuccess(
+        data.message ||
+          "Staging file uploaded successfully."
       );
 
-      // Clear selected file
       setSelectedFile(null);
 
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      const fileInput =
+        document.getElementById("staging-file-input");
+
+      if (fileInput) {
+        fileInput.value = "";
       }
 
-      // Refresh staging records
-      await fetchStagingData();
+      await loadStaging();
 
-      // Close modal after successful upload
       setTimeout(() => {
         setShowUploadModal(false);
-        setSuccessMessage("");
-      }, 1800);
+        setSuccess("");
+      }, 900);
     } catch (err) {
-      console.error(
-        "POST /staging/upload error:",
-        err
-      );
+      console.error("STAGING FILE UPLOAD ERROR:", err);
 
       setError(
-        err.message || "Failed to upload staging file"
+        err.message ||
+          "Unable to upload staging file."
       );
     } finally {
       setUploading(false);
     }
   };
 
-  // =========================================================
-  // POST STAGING RECORD
-  // =========================================================
+  // =====================================================
+  // CLOSE UPLOAD MODAL
+  // =====================================================
 
-  const handleCreateStaging = async () => {
-    try {
-      setSaving(true);
-      setError("");
-      setSuccessMessage("");
+  const closeUploadModal = () => {
+    if (uploading) {
+      return;
+    }
 
-      if (!formData.ISIN.trim()) {
-        setError("ISIN is required");
-        return;
-      }
+    setShowUploadModal(false);
+    setSelectedFile(null);
+    setError("");
+    setSuccess("");
 
-      if (!formData.Company_Name.trim()) {
-        setError("Company Name is required");
-        return;
-      }
+    const fileInput =
+      document.getElementById("staging-file-input");
 
-      const response = await fetch(
-        `${API_BASE_URL}/staging`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ISIN: formData.ISIN.trim(),
-            Symbol: formData.Symbol.trim(),
-            Company_Name:
-              formData.Company_Name.trim(),
-            Series: formData.Series || "EQ",
-            Listing_Date:
-              formData.Listing_Date || null,
-            Face_Value:
-              formData.Face_Value === ""
-                ? null
-                : Number(formData.Face_Value),
-            Source_File:
-              formData.Source_File.trim() ||
-              "manual",
-          }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(
-          result.message ||
-            "Failed to create staging record"
-        );
-      }
-
-      setSuccessMessage(
-        "Staging record created successfully"
-      );
-
-      setShowModal(false);
-
-      setFormData({
-        ISIN: "",
-        Symbol: "",
-        Company_Name: "",
-        Series: "EQ",
-        Listing_Date: "",
-        Face_Value: "",
-        Source_File: "",
-      });
-
-      await fetchStagingData();
-    } catch (err) {
-      console.error(
-        "POST /staging error:",
-        err
-      );
-
-      setError(
-        err.message ||
-          "Failed to create staging record"
-      );
-    } finally {
-      setSaving(false);
+    if (fileInput) {
+      fileInput.value = "";
     }
   };
 
-  // =========================================================
-  // SEARCH
-  // =========================================================
-
-  const filteredData = stagingData.filter(
-    (item) => {
-      const value = search
-        .toLowerCase()
-        .trim();
-
-      if (!value) {
-        return true;
-      }
-
-      return (
-        String(item.ISIN || "")
-          .toLowerCase()
-          .includes(value) ||
-        String(item.Company_Name || "")
-          .toLowerCase()
-          .includes(value) ||
-        String(item.Symbol || "")
-          .toLowerCase()
-          .includes(value)
-      );
-    }
-  );
-
-  // =========================================================
+  // =====================================================
   // RENDER
-  // =========================================================
+  // =====================================================
 
   return (
-    <div>
-      {/* =====================================================
+    <div className="staging-page">
+      {/* =================================================
           PAGE HEADER
-      ===================================================== */}
+          ================================================= */}
 
-      <div className="page-heading">
+      <div className="page-header">
         <div>
-          <h2>Staging</h2>
-          <p>NSE records waiting for processing</p>
+          <h1>Scrip Staging</h1>
+
+          <p>
+            Review and manage staging records before Tier 1
+            processing.
+          </p>
         </div>
 
-        <div className="staging-actions">
-          {/* UPLOAD STAGING FILE */}
+        <div className="page-header-actions">
+          <button
+            className="secondary-button"
+            onClick={loadStaging}
+            disabled={loading}
+          >
+            <RefreshCw
+              size={16}
+              className={loading ? "button-spinner" : ""}
+            />
+
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
 
           <button
-            className="upload-staging-button"
-            onClick={openUploadModal}
+            className="secondary-button"
+            onClick={() => {
+              setError("");
+              setSuccess("");
+              setShowUploadModal(true);
+            }}
           >
-            <Upload size={17} />
+            <Upload size={16} />
             Upload Staging File
           </button>
 
-          {/* ADD STAGING */}
+          
 
           <button
             className="primary-button"
@@ -882,475 +1642,513 @@ function Staging() {
         </div>
       </div>
 
-      {/* =====================================================
-          SUCCESS MESSAGE
-      ===================================================== */}
+      {/* =================================================
+          ERROR
+          ================================================= */}
 
-      {successMessage && (
-        <div className="success-message">
-          {successMessage}
+      {error && !showAddModal && !showUploadModal && (
+        <div className="form-alert form-alert-error staging-page-alert">
+          <span>{error}</span>
+
+          <button
+            type="button"
+            onClick={() => setError("")}
+          >
+            <X size={15} />
+          </button>
         </div>
       )}
 
-      {/* =====================================================
-          ERROR MESSAGE
-      ===================================================== */}
+      {/* =================================================
+          SUCCESS
+          ================================================= */}
 
-      {error && (
-        <div className="error-message">
-          {error}
+      {success && !showAddModal && !showUploadModal && (
+        <div className="form-alert form-alert-success staging-page-alert">
+          <CheckCircle2 size={18} />
+
+          <span>{success}</span>
         </div>
       )}
 
-      {/* =====================================================
-          TOOLBAR
-      ===================================================== */}
+      {/* =================================================
+          SEARCH + COUNT
+          ================================================= */}
 
-      <div className="toolbar">
-        <div className="search-box">
-          <Search size={18} />
+      <div className="staging-toolbar">
+        <div className="staging-search">
+          <Search size={17} />
 
           <input
             type="text"
-            placeholder="Search ISIN, company or symbol..."
             value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search ISIN, company, symbol..."
           />
+
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+            >
+              <X size={15} />
+            </button>
+          )}
         </div>
 
-        <button
-          className="secondary-button"
-          onClick={fetchStagingData}
-          disabled={loading}
-        >
-          <RefreshCw
-            size={16}
-            className={
-              loading ? "spin" : ""
-            }
-          />
+        <div className="staging-count">
+          <Database size={16} />
 
-          Refresh
-        </button>
+          <span>
+            {filteredRows.length} record
+            {filteredRows.length === 1 ? "" : "s"}
+          </span>
+        </div>
       </div>
 
-      {/* =====================================================
+      {/* =================================================
           TABLE
-      ===================================================== */}
+          ================================================= */}
 
-      <div className="panel">
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>ISIN</th>
-                <th>Company Name</th>
-                <th>Symbol</th>
-                <th>Series</th>
-                <th>Listing Date</th>
-                <th>Face Value</th>
-                <th>Source File</th>
-              </tr>
-            </thead>
+      <div className="staging-table-card">
+        {loading ? (
+          <div className="staging-empty">
+            <Loader2
+              size={28}
+              className="button-spinner"
+            />
 
-            <tbody>
-              {loading ? (
+            <p>Loading staging records...</p>
+          </div>
+        ) : filteredRows.length === 0 ? (
+          <div className="staging-empty">
+            <FileText size={34} />
+
+            <h3>No staging records found</h3>
+
+            <p>
+              Add a staging record manually or upload an NSE
+              CSV file.
+            </p>
+          </div>
+        ) : (
+          <div className="staging-table-wrapper">
+            <table className="staging-table">
+              <thead>
                 <tr>
-                  <td colSpan="7">
-                    <div className="table-empty">
-                      Loading staging records...
-                    </div>
-                  </td>
+                  <th>ISIN</th>
+                  <th>Company Name</th>
+                  <th>Symbol</th>
+                  <th>Series</th>
+                  <th>Listing Date</th>
+                  <th>Face Value</th>
+                  <th>Source File</th>
                 </tr>
-              ) : filteredData.length === 0 ? (
-                <tr>
-                  <td colSpan="7">
-                    <div className="table-empty">
-                      No records found
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredData.map((item) => (
+              </thead>
+
+              <tbody>
+                {filteredRows.map((row, index) => (
                   <tr
                     key={
-                      item.ROWID ||
-                      item.ISIN
+                      row.ROWID ||
+                      row.ROW_ID ||
+                      `${row.ISIN}-${index}`
                     }
                   >
-                    <td className="isin">
-                      {item.ISIN}
+                    <td>
+                      <span className="table-isin">
+                        {row.ISIN || "-"}
+                      </span>
                     </td>
 
                     <td>
-                      {item.Company_Name}
+                      {row.Company_Name || "-"}
                     </td>
 
                     <td>
-                      <strong>
-                        {item.Symbol || "-"}
-                      </strong>
+                      {row.Symbol || "-"}
                     </td>
 
                     <td>
-                      {item.Series || "EQ"}
+                      {row.Series || "-"}
                     </td>
 
                     <td>
-                      {item.Listing_Date ||
-                        "-"}
+                      {row.Listing_Date || "-"}
                     </td>
 
                     <td>
-                      {item.Face_Value ??
-                        "-"}
+                      {row.Face_Value || "-"}
                     </td>
 
                     <td>
-                      {item.Source_File ||
-                        "-"}
+                      {row.Source_File || "-"}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* =====================================================
+      {/* =================================================
           ADD STAGING MODAL
-      ===================================================== */}
+          ================================================= */}
 
-      {showModal && (
+      {showAddModal && (
         <div
           className="modal-overlay"
-          onClick={() => {
-            if (!saving) {
-              setShowModal(false);
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              closeAddModal();
             }
           }}
         >
-          <div
-            className="modal"
-            onClick={(e) =>
-              e.stopPropagation()
-            }
-          >
+          <div className="modal-card staging-add-modal">
             <div className="modal-header">
               <div>
-                <h3>
-                  Add Staging Record
-                </h3>
+                <h2>Add Staging Record</h2>
 
                 <p>
-                  Add an NSE record to the
-                  staging table.
+                  Enter the available staging information.
+                  All fields are optional.
                 </p>
               </div>
 
               <button
+                type="button"
                 className="modal-close"
-                onClick={() => {
-                  if (!saving) {
-                    setShowModal(false);
-                  }
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="form">
-              <label>
-                ISIN
-
-                <input
-                  name="ISIN"
-                  value={formData.ISIN}
-                  onChange={handleChange}
-                  placeholder="INE123A01012"
-                />
-              </label>
-
-              <label>
-                Company Name
-
-                <input
-                  name="Company_Name"
-                  value={
-                    formData.Company_Name
-                  }
-                  onChange={handleChange}
-                  placeholder="Company Name Limited"
-                />
-              </label>
-
-              <label>
-                Symbol
-
-                <input
-                  name="Symbol"
-                  value={formData.Symbol}
-                  onChange={handleChange}
-                  placeholder="ABC"
-                />
-              </label>
-
-              <label>
-                Series
-
-                <input
-                  name="Series"
-                  value="EQ"
-                  readOnly
-                />
-              </label>
-
-              <label>
-                Listing Date
-
-                <input
-                  type="date"
-                  name="Listing_Date"
-                  value={
-                    formData.Listing_Date
-                  }
-                  onChange={handleChange}
-                />
-              </label>
-
-              <label>
-                Face Value
-
-                <input
-                  type="number"
-                  name="Face_Value"
-                  value={
-                    formData.Face_Value
-                  }
-                  onChange={handleChange}
-                  placeholder="10"
-                />
-              </label>
-
-              <label>
-                Source File
-
-                <input
-                  name="Source_File"
-                  value={
-                    formData.Source_File
-                  }
-                  onChange={handleChange}
-                  placeholder="EQUITY_L.csv"
-                />
-              </label>
-            </div>
-
-            <div className="modal-footer">
-              <button
-                className="secondary-button"
-                onClick={() =>
-                  setShowModal(false)
-                }
+                onClick={closeAddModal}
                 disabled={saving}
               >
-                Cancel
-              </button>
-
-              <button
-                className="primary-button"
-                onClick={
-                  handleCreateStaging
-                }
-                disabled={saving}
-              >
-                {saving
-                  ? "Creating..."
-                  : "Create Staging"}
+                <X size={18} />
               </button>
             </div>
+
+            <form onSubmit={handleCreateStaging}>
+              {error && (
+                <div className="form-alert form-alert-error">
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {success && (
+                <div className="form-alert form-alert-success">
+                  <CheckCircle2 size={18} />
+
+                  <span>{success}</span>
+                </div>
+              )}
+
+              <div className="staging-form-grid">
+                {/* ISIN */}
+                <div className="form-field">
+                  <label htmlFor="staging-ISIN">
+                    ISIN
+                  </label>
+
+                  <input
+                    id="staging-ISIN"
+                    name="ISIN"
+                    value={form.ISIN}
+                    onChange={handleChange}
+                    placeholder="INE123A01012"
+                    maxLength={12}
+                  />
+                </div>
+
+                {/* COMPANY */}
+                <div className="form-field">
+                  <label htmlFor="staging-Company_Name">
+                    Company Name
+                  </label>
+
+                  <input
+                    id="staging-Company_Name"
+                    name="Company_Name"
+                    value={form.Company_Name}
+                    onChange={handleChange}
+                    placeholder="Company Name Limited"
+                  />
+                </div>
+
+                {/* SYMBOL */}
+                <div className="form-field">
+                  <label htmlFor="staging-Symbol">
+                    Symbol
+                  </label>
+
+                  <input
+                    id="staging-Symbol"
+                    name="Symbol"
+                    value={form.Symbol}
+                    onChange={handleChange}
+                    placeholder="ABC"
+                  />
+                </div>
+
+                {/* SERIES */}
+                <div className="form-field">
+                  <label htmlFor="staging-Series">
+                    Series
+                  </label>
+
+                  <select
+                    id="staging-Series"
+                    name="Series"
+                    value={form.Series}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select Series</option>
+                    <option value="EQ">EQ</option>
+                    <option value="BE">BE</option>
+                    <option value="BZ">BZ</option>
+                    <option value="SM">SM</option>
+                    <option value="ST">ST</option>
+                    <option value="GB">GB</option>
+                  </select>
+                </div>
+
+                {/* LISTING DATE */}
+                <div className="form-field">
+                  <label htmlFor="staging-Listing_Date">
+                    Listing Date
+                  </label>
+
+                  <input
+                    id="staging-Listing_Date"
+                    name="Listing_Date"
+                    type="date"
+                    value={form.Listing_Date}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                {/* FACE VALUE */}
+                <div className="form-field">
+                  <label htmlFor="staging-Face_Value">
+                    Face Value
+                  </label>
+
+                  <input
+                    id="staging-Face_Value"
+                    name="Face_Value"
+                    type="text"
+                    value={form.Face_Value}
+                    onChange={handleChange}
+                    placeholder="10"
+                  />
+                </div>
+
+                {/* SOURCE FILE */}
+                <div className="form-field full-width">
+                  <label htmlFor="staging-Source_File">
+                    Source File
+                  </label>
+
+                  <input
+                    id="staging-Source_File"
+                    name="Source_File"
+                    value={form.Source_File}
+                    onChange={handleChange}
+                    placeholder="EQUITY_L.csv"
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={closeAddModal}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <>
+                      <Loader2
+                        size={17}
+                        className="button-spinner"
+                      />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={17} />
+                      Create Staging
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* =====================================================
-          UPLOAD STAGING FILE MODAL
-      ===================================================== */}
+      {/* =================================================
+          UPLOAD MODAL
+          ================================================= */}
 
       {showUploadModal && (
         <div
           className="modal-overlay"
-          onClick={() => {
-            if (!uploading) {
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
               closeUploadModal();
             }
           }}
         >
-          <div
-            className="upload-staging-modal"
-            onClick={(e) =>
-              e.stopPropagation()
-            }
-          >
-            {/* MODAL HEADER */}
-
-            <div className="upload-modal-header">
+          <div className="modal-card staging-upload-modal">
+            <div className="modal-header">
               <div>
-                <h3>
-                  Upload Staging File
-                </h3>
+                <h2>Upload Staging File</h2>
 
                 <p>
-                  Upload an NSE CSV manually
-                  when the NSE download is
-                  unavailable.
+                  Upload an NSE staging CSV file.
                 </p>
               </div>
 
               <button
+                type="button"
                 className="modal-close"
                 onClick={closeUploadModal}
                 disabled={uploading}
               >
-                <X size={19} />
+                <X size={18} />
               </button>
             </div>
 
-            {/* MODAL BODY */}
+            <form onSubmit={handleUpload}>
+              {error && (
+                <div className="form-alert form-alert-error">
+                  <span>{error}</span>
+                </div>
+              )}
 
-            <div className="upload-modal-body">
-              <div className="upload-info-box">
-                <strong>
-                  Supported files
-                </strong>
+              {success && (
+                <div className="form-alert form-alert-success">
+                  <CheckCircle2 size={18} />
 
-                <span>
-                  EQUITY_L.csv or
-                  SME_EQUITY_L.csv
-                </span>
-              </div>
+                  <span>{success}</span>
+                </div>
+              )}
 
-              {/* FILE SELECT */}
+              <div className="upload-area">
+                <Upload size={34} />
 
-              <label
-                className="file-upload-box"
-              >
-                <Upload size={30} />
+                <h3>
+                  Select CSV file
+                </h3>
 
-                <strong>
-                  {selectedFile
-                    ? selectedFile.name
-                    : "Choose CSV file"}
-                </strong>
-
-                <span>
-                  Click here to select a
-                  CSV file
-                </span>
-
-                <small>
+                <p>
                   Maximum file size: 10 MB
-                </small>
+                </p>
+
+                <label
+                  htmlFor="staging-file-input"
+                  className="file-select-button"
+                >
+                  Choose CSV File
+                </label>
 
                 <input
-                  ref={fileInputRef}
+                  id="staging-file-input"
                   type="file"
                   accept=".csv,text/csv"
-                  onChange={
-                    handleFileChange
-                  }
+                  onChange={handleFileChange}
+                  hidden
                 />
-              </label>
 
-              {/* SELECTED FILE */}
+                {selectedFile && (
+                  <div className="selected-file">
+                    <FileText size={18} />
 
-              {selectedFile && (
-                <div className="selected-file-box">
-                  <div>
-                    <span>
-                      Selected file
-                    </span>
+                    <div>
+                      <strong>
+                        {selectedFile.name}
+                      </strong>
 
-                    <strong>
-                      {selectedFile.name}
-                    </strong>
+                      <span>
+                        {(
+                          selectedFile.size /
+                          1024 /
+                          1024
+                        ).toFixed(2)}{" "}
+                        MB
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFile(null);
+
+                        const input =
+                          document.getElementById(
+                            "staging-file-input"
+                          );
+
+                        if (input) {
+                          input.value = "";
+                        }
+                      }}
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
-
-                  <span>
-                    {(
-                      selectedFile.size /
-                      1024 /
-                      1024
-                    ).toFixed(2)}{" "}
-                    MB
-                  </span>
-                </div>
-              )}
-
-              {/* INFORMATION */}
-
-              <div className="upload-note">
-                The original CSV will first
-                be stored in Catalyst
-                Stratus. The file will then
-                be validated and its valid
-                records will be added to
-                <strong>
-                  {" "}
-                  scrip_staging
-                </strong>
-                .
+                )}
               </div>
 
-              {/* UPLOAD ERROR */}
+              <div className="upload-info">
+                <strong>Supported files</strong>
 
-              {error && (
-                <div className="upload-error">
-                  {error}
-                </div>
-              )}
+                <span>
+                  EQUITY_L.csv or SME_EQUITY_L.csv
+                </span>
+              </div>
 
-              {/* UPLOAD SUCCESS */}
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={closeUploadModal}
+                  disabled={uploading}
+                >
+                  Cancel
+                </button>
 
-              {successMessage && (
-                <div className="upload-success">
-                  {successMessage}
-                </div>
-              )}
-            </div>
-
-            {/* MODAL FOOTER */}
-
-            <div className="upload-modal-footer">
-              <button
-                className="secondary-button"
-                onClick={closeUploadModal}
-                disabled={uploading}
-              >
-                Cancel
-              </button>
-
-              <button
-                className="primary-button"
-                onClick={
-                  handleUploadStagingFile
-                }
-                disabled={
-                  !selectedFile ||
-                  uploading
-                }
-              >
-                <Upload size={16} />
-
-                {uploading
-                  ? "Uploading..."
-                  : "Upload File"}
-              </button>
-            </div>
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={
+                    uploading || !selectedFile
+                  }
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2
+                        size={17}
+                        className="button-spinner"
+                      />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={17} />
+                      Upload File
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

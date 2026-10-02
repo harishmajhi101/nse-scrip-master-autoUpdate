@@ -1,16 +1,27 @@
+
 import { useEffect, useState } from "react";
 import { Search, RefreshCw, Check, X } from "lucide-react";
 
 const API_BASE_URL =
-  "https://nse-data-sync-60066676245.development.catalystserverless.in/server/scrip_api";
+  import.meta.env.DEV
+    ? "/api"
+    : "https://nse-data-sync-60066676245.development.catalystserverless.in/server/scrip_api";
 
 function Approval() {
   const [approvalData, setApprovalData] = useState([]);
   const [search, setSearch] = useState("");
+
+  // Start with Pending records
   const [statusFilter, setStatusFilter] = useState("pending");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [processingId, setProcessingId] = useState(null);
+  const [success, setSuccess] = useState("");
+
+  // =========================================================
+  // FETCH APPROVAL QUEUE
+  // =========================================================
 
   const fetchApprovalData = async () => {
     try {
@@ -21,6 +32,9 @@ function Approval() {
 
       const result = await response.json();
 
+      console.log("GET /approval status:", response.status);
+      console.log("GET /approval response:", result);
+
       if (!response.ok || !result.success) {
         throw new Error(
           result.message || "Failed to fetch approval queue"
@@ -30,6 +44,7 @@ function Approval() {
       setApprovalData(result.data || []);
     } catch (err) {
       console.error("GET /approval error:", err);
+
       setError(
         err.message || "Failed to load approval queue"
       );
@@ -38,38 +53,295 @@ function Approval() {
     }
   };
 
+  // =========================================================
+  // LOAD ON PAGE OPEN
+  // =========================================================
+
   useEffect(() => {
     fetchApprovalData();
   }, []);
 
-  const filteredData = approvalData.filter((item) => {
-    const searchValue = search.toLowerCase().trim();
+  // =========================================================
+  // APPROVE
+  // =========================================================
 
-    const matchesSearch =
-      !searchValue ||
-      String(item.ISIN || "")
-        .toLowerCase()
-        .includes(searchValue) ||
-      String(item.Source || "")
-        .toLowerCase()
-        .includes(searchValue) ||
-      String(item.Agent_Reason || "")
-        .toLowerCase()
-        .includes(searchValue);
+  const handleApprove = async (item) => {
+    const rowId = item.ROWID;
 
-    const itemStatus = String(
-      item.Status || "pending"
-    ).toLowerCase();
+    console.log("APPROVE CLICKED:", rowId);
 
-    const matchesStatus =
-      statusFilter === "all" ||
-      itemStatus === statusFilter;
+    if (!rowId) {
+      setError("Approval ROWID is missing");
+      return;
+    }
 
-    return matchesSearch && matchesStatus;
-  });
+    const confirmed = window.confirm(
+      "Are you sure you want to approve this proposal?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setProcessingId(rowId);
+      setError("");
+      setSuccess("");
+
+      console.log("Sending approve request...");
+
+      const response = await fetch(
+        `${API_BASE_URL}/approval/approve`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+
+          body: JSON.stringify({
+            rowId: rowId,
+            decidedBy: "admin",
+          }),
+        }
+      );
+
+      console.log(
+        "Approve HTTP status:",
+        response.status
+      );
+
+      const result = await response.json();
+
+      console.log(
+        "Approve response:",
+        result
+      );
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message ||
+            result.error ||
+            "Approval failed"
+        );
+      }
+
+      // =====================================================
+      // IMPORTANT
+      // Do NOT delete the row from approvalData.
+      // Update it locally to APPROVED.
+      // =====================================================
+
+      setApprovalData((prev) =>
+        prev.map((row) =>
+          row.ROWID === rowId
+            ? {
+                ...row,
+                Status: "APPROVED",
+                Decided_By:
+                  result.decidedBy || "admin",
+                Decided_At:
+                  result.decidedAt ||
+                  new Date().toISOString(),
+              }
+            : row
+        )
+      );
+
+      // =====================================================
+      // Show the approved row immediately.
+      //
+      // Since the current filter is "Pending", an APPROVED
+      // row would normally disappear.
+      //
+      // Switch to "All" so the approved row stays visible.
+      // =====================================================
+
+      setStatusFilter("all");
+
+      setSuccess(
+        result.message ||
+          "Proposal approved successfully"
+      );
+
+      console.log(
+        "Approval successful. Row kept visible:",
+        rowId
+      );
+    } catch (err) {
+      console.error(
+        "APPROVE ERROR:",
+        err
+      );
+
+      setError(
+        err.message ||
+          "Failed to approve proposal"
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // =========================================================
+  // REJECT
+  // =========================================================
+
+  const handleReject = async (item) => {
+    const rowId = item.ROWID;
+
+    console.log("REJECT CLICKED:", rowId);
+
+    if (!rowId) {
+      setError("Approval ROWID is missing");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Are you sure you want to reject this proposal?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setProcessingId(rowId);
+      setError("");
+      setSuccess("");
+
+      console.log("Sending reject request...");
+
+      const response = await fetch(
+        `${API_BASE_URL}/approval/reject`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+
+          body: JSON.stringify({
+            rowId: rowId,
+            decidedBy: "admin",
+          }),
+        }
+      );
+
+      console.log(
+        "Reject HTTP status:",
+        response.status
+      );
+
+      const result = await response.json();
+
+      console.log(
+        "Reject response:",
+        result
+      );
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message ||
+            result.error ||
+            "Reject failed"
+        );
+      }
+
+      // =====================================================
+      // Keep the rejected row in the table.
+      // Do NOT delete it.
+      // =====================================================
+
+      setApprovalData((prev) =>
+        prev.map((row) =>
+          row.ROWID === rowId
+            ? {
+                ...row,
+                Status: "REJECTED",
+                Decided_By:
+                  result.decidedBy || "admin",
+                Decided_At:
+                  result.decidedAt ||
+                  new Date().toISOString(),
+              }
+            : row
+        )
+      );
+
+      // Show rejected row immediately
+      setStatusFilter("all");
+
+      setSuccess(
+        result.message ||
+          "Proposal rejected successfully"
+      );
+
+      console.log(
+        "Rejection successful. Row kept visible:",
+        rowId
+      );
+    } catch (err) {
+      console.error(
+        "REJECT ERROR:",
+        err
+      );
+
+      setError(
+        err.message ||
+          "Failed to reject proposal"
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // =========================================================
+  // FILTER
+  // =========================================================
+
+  const filteredData = approvalData.filter(
+    (item) => {
+      const searchValue =
+        search.toLowerCase().trim();
+
+      const matchesSearch =
+        !searchValue ||
+        String(item.ISIN || "")
+          .toLowerCase()
+          .includes(searchValue) ||
+        String(item.Source || "")
+          .toLowerCase()
+          .includes(searchValue) ||
+        String(item.Agent_Reason || "")
+          .toLowerCase()
+          .includes(searchValue);
+
+      const itemStatus = String(
+        item.Status || "pending"
+      ).toLowerCase();
+
+      const matchesStatus =
+        statusFilter === "all" ||
+        itemStatus === statusFilter;
+
+      return (
+        matchesSearch &&
+        matchesStatus
+      );
+    }
+  );
+
+  // =========================================================
+  // STATUS CLASS
+  // =========================================================
 
   const getStatusClass = (status) => {
-    const value = String(status || "").toLowerCase();
+    const value = String(
+      status || ""
+    ).toLowerCase();
 
     if (value === "approved") {
       return "active";
@@ -82,24 +354,40 @@ function Approval() {
     return "pending";
   };
 
+  // =========================================================
+  // UI
+  // =========================================================
+
   return (
     <div>
-      {/* =========================
+      {/* ===================================================
           PAGE HEADER
-      ========================= */}
+      =================================================== */}
 
       <div className="page-heading">
         <div>
           <h2>Approval Queue</h2>
+
           <p>
-            Review proposed changes before they are applied
+            Review proposed changes before
+            they are applied
           </p>
         </div>
       </div>
 
-      {/* =========================
-          ERROR
-      ========================= */}
+      {/* ===================================================
+          SUCCESS MESSAGE
+      =================================================== */}
+
+      {success && (
+        <div className="success-message">
+          {success}
+        </div>
+      )}
+
+      {/* ===================================================
+          ERROR MESSAGE
+      =================================================== */}
 
       {error && (
         <div className="error-message">
@@ -107,11 +395,13 @@ function Approval() {
         </div>
       )}
 
-      {/* =========================
+      {/* ===================================================
           TOOLBAR
-      ========================= */}
+      =================================================== */}
 
       <div className="toolbar">
+        {/* SEARCH */}
+
         <div className="search-box">
           <Search size={18} />
 
@@ -119,15 +409,21 @@ function Approval() {
             type="text"
             placeholder="Search ISIN, source or reason..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
           />
         </div>
+
+        {/* STATUS FILTER */}
 
         <select
           className="filter-select"
           value={statusFilter}
           onChange={(e) =>
-            setStatusFilter(e.target.value)
+            setStatusFilter(
+              e.target.value
+            )
           }
         >
           <option value="pending">
@@ -147,22 +443,28 @@ function Approval() {
           </option>
         </select>
 
+        {/* REFRESH */}
+
         <button
+          type="button"
           className="secondary-button"
           onClick={fetchApprovalData}
           disabled={loading}
         >
           <RefreshCw
             size={16}
-            className={loading ? "spin" : ""}
+            className={
+              loading ? "spin" : ""
+            }
           />
+
           Refresh
         </button>
       </div>
 
-      {/* =========================
-          TABLE
-      ========================= */}
+      {/* ===================================================
+          APPROVAL TABLE
+      =================================================== */}
 
       <div className="panel">
         <div className="table-wrapper">
@@ -181,6 +483,8 @@ function Approval() {
             </thead>
 
             <tbody>
+              {/* LOADING */}
+
               {loading ? (
                 <tr>
                   <td colSpan="8">
@@ -190,6 +494,8 @@ function Approval() {
                   </td>
                 </tr>
               ) : filteredData.length === 0 ? (
+                /* EMPTY */
+
                 <tr>
                   <td colSpan="8">
                     <div className="table-empty">
@@ -198,10 +504,17 @@ function Approval() {
                   </td>
                 </tr>
               ) : (
+                /* DATA */
+
                 filteredData.map((item) => {
                   const status = String(
-                    item.Status || "pending"
+                    item.Status ||
+                      "pending"
                   ).toLowerCase();
+
+                  const isProcessing =
+                    processingId ===
+                    item.ROWID;
 
                   return (
                     <tr
@@ -210,35 +523,67 @@ function Approval() {
                         `${item.ISIN}-${item.CREATEDTIME}`
                       }
                     >
+                      {/* =================================
+                          ISIN
+                      ================================= */}
+
                       <td className="isin">
-                        {item.ISIN}
+                        {item.ISIN || "-"}
                       </td>
+
+                      {/* =================================
+                          CURRENT VALUES
+                      ================================= */}
 
                       <td>
                         <pre className="json-cell">
-                          {item.Current_Values || "-"}
+                          {item.Current_Values ||
+                            "-"}
                         </pre>
                       </td>
 
+                      {/* =================================
+                          PROPOSED VALUES
+                      ================================= */}
+
                       <td>
                         <pre className="json-cell">
-                          {item.Proposed_Values || "-"}
+                          {item.Proposed_Values ||
+                            "-"}
                         </pre>
                       </td>
+
+                      {/* =================================
+                          SOURCE
+                      ================================= */}
 
                       <td>
                         {item.Source || "-"}
                       </td>
 
+                      {/* =================================
+                          CONFIDENCE
+                      ================================= */}
+
                       <td>
                         <span className="status pending">
-                          {item.Confidence || "-"}
+                          {item.Confidence ||
+                            "-"}
                         </span>
                       </td>
 
+                      {/* =================================
+                          REASON
+                      ================================= */}
+
                       <td>
-                        {item.Agent_Reason || "-"}
+                        {item.Agent_Reason ||
+                          "-"}
                       </td>
+
+                      {/* =================================
+                          STATUS
+                      ================================= */}
 
                       <td>
                         <span
@@ -246,27 +591,67 @@ function Approval() {
                             status
                           )}`}
                         >
-                          {item.Status || "pending"}
+                          {String(
+                            item.Status ||
+                              "PENDING"
+                          ).toUpperCase()}
                         </span>
                       </td>
 
+                      {/* =================================
+                          ACTION
+                      ================================= */}
+
                       <td>
-                        {status === "pending" ? (
+                        {status ===
+                        "pending" ? (
                           <div className="approval-actions">
-                            <button
-                              className="approve-button"
-                              title="Approve"
-                            >
-                              <Check size={15} />
-                              Approve
-                            </button>
+                            {/* APPROVE */}
 
                             <button
+                              type="button"
+                              className="approve-button"
+                              title="Approve"
+                              onClick={() =>
+                                handleApprove(
+                                  item
+                                )
+                              }
+                              disabled={
+                                isProcessing
+                              }
+                            >
+                              <Check
+                                size={15}
+                              />
+
+                              {isProcessing
+                                ? "Processing..."
+                                : "Approve"}
+                            </button>
+
+                            {/* REJECT */}
+
+                            <button
+                              type="button"
                               className="reject-button"
                               title="Reject"
+                              onClick={() =>
+                                handleReject(
+                                  item
+                                )
+                              }
+                              disabled={
+                                isProcessing
+                              }
                             >
-                              <X size={15} />
-                              Reject
+                              <X
+                                size={15}
+                              />
+
+                              {isProcessing
+                                ? "Processing..."
+                                : "Reject"}
                             </button>
                           </div>
                         ) : (
