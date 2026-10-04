@@ -400,7 +400,8 @@
 
 // export default App;
 
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Database,
@@ -426,8 +427,14 @@ const API_BASE_URL =
   "https://nse-data-sync-60066676245.development.catalystserverless.in/server/scrip_api";
 
 function App() {
-  const [activePage, setActivePage] =
-    useState("Dashboard");
+  // Keep the current page after browser refresh.
+  const [activePage, setActivePage] = useState(() => {
+    return localStorage.getItem("activePage") || "Dashboard";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("activePage", activePage);
+  }, [activePage]);
 
   // =========================================================
   // TIER 1 STATE

@@ -12,8 +12,10 @@ import {
   Play,
 } from "lucide-react";
 
-const API_BASE_URL =
-  "https://nse-data-sync-60066676245.development.catalystserverless.in/server/scrip_api";
+const API_BASE_URL = import.meta.env.DEV
+  ? "/api"
+  : import.meta.env.VITE_SCRIP_API_URL ||
+    "https://nse-data-sync-60066676245.development.catalystserverless.in/server/scrip_api";
 
 // =========================================================
 // DASHBOARD

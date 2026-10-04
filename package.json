@@ -10,12 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "express": "^5.2.1",
+    "@zcatalyst/stratus": "^1.0.0",
+    "express": "4.22.3",
     "lucide-react": "^1.49.0",
     "multer": "^2.4.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "zcatalyst-sdk-node": "^3.4.0"
+    "zcatalyst-sdk-node": "3.4.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
